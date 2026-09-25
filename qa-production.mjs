@@ -1,0 +1,43 @@
+const base = 'https://kinexy.grupoamayo.com/api';
+const stamp = Date.now();
+const password = 'KinexyQA!2026';
+const results = [];
+const record = (name, response, body) => results.push({ name, status: response.status, ok: response.ok, detail: body?.error || body?.review_status || body?.status || '' });
+async function call(name, path, options = {}, token = '') {
+  const headers = { ...(options.headers || {}) };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (options.body && !(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  const response = await fetch(base + path, { ...options, headers, body: options.body && !(options.body instanceof FormData) ? JSON.stringify(options.body) : options.body });
+  let body = {}; try { body = await response.json(); } catch {}
+  record(name, response, body); return { response, body };
+}
+const creatorEmail = `qa.creator.full.${stamp}@kinexy.test`, clientEmail = `qa.client.full.${stamp}@kinexy.test`;
+const common = { password, date_of_birth: '1994-05-20', accepted_terms: true, accepted_privacy: true };
+const creatorReg = await call('Registro creadora', '/auth/register', { method: 'POST', body: { ...common, name: 'QA Creadora Full', email: creatorEmail, role: 'creator' } });
+const clientReg = await call('Registro cliente', '/auth/register', { method: 'POST', body: { ...common, name: 'QA Cliente Full', email: clientEmail, role: 'client' } });
+const creatorToken = creatorReg.body.token, clientToken = clientReg.body.token, creatorId = creatorReg.body.user?.id;
+await call('Rechazo menor de edad', '/auth/register', { method: 'POST', body: { ...common, name: 'QA Menor', email: `qa.minor.${stamp}@kinexy.test`, date_of_birth: '2012-01-01', role: 'client' } });
+await call('Sesión creadora', '/auth/me', {}, creatorToken); await call('Sesión cliente', '/auth/me', {}, clientToken);
+await call('Billetera cliente', '/wallet', {}, clientToken); await call('Billetera creadora', '/wallet', {}, creatorToken);
+await call('Cliente sin permisos admin', '/users', {}, clientToken);
+const form = new FormData(); form.append('image', new Blob([Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z8WQAAAAASUVORK5CYII=', 'base64')], { type: 'image/png' }), 'qa.png');
+await call('Subida real de imagen', '/uploads/image', { method: 'POST', body: form }, creatorToken);
+const profileResult = await call('Crear perfil pendiente', '/profiles', { method: 'POST', body: { name: 'QA Perfil Full', age: 30, city: 'Pucallpa', area: 'Centro', category: 'Premium', plan: 'basico', price: 'S/ 100', schedule: 'Previa coordinación', description: 'Perfil temporal de prueba integral.', photo: '/uploads/qa-placeholder.png', photos: ['/uploads/qa-placeholder.png'], identity: 'Creadora', services: 'QA', contact_whatsapp: '', contact_telegram: '', contact_price_tokens: 10, show_price: true } }, creatorToken);
+const profileId = profileResult.body.profile?.id;
+await call('Listar perfiles propios', '/advertiser/profiles', {}, creatorToken); await call('Perfil pendiente no público', `/profiles/${profileId}`, {}, clientToken);
+const publicPost = await call('Publicación pública de texto', '/creator/posts', { method: 'POST', body: { title: 'QA publicación pública', caption: 'Mensaje temporal de prueba.', type: 'text', visibility: 'public', price_tokens: 0, media_url: '', status: 'published' } }, creatorToken);
+const postId = publicPost.body.post?.id;
+await call('Publicaciones sin plan activo', `/creator/posts/${creatorId}`, {}, clientToken);
+await call('Comentario cliente', `/creator/posts/${postId}/comments`, { method: 'POST', body: { text: 'Comentario QA temporal' } }, clientToken);
+await call('Like cliente', `/creator/posts/${postId}/likes`, { method: 'POST', body: {} }, clientToken);
+await call('Acceso chat cliente-creadora', `/messages/access?partner_id=${creatorId}`, {}, clientToken);
+await call('Mensaje bloqueado sin aporte', '/messages', { method: 'POST', body: { receiver_id: creatorId, text: 'Hola desde QA cliente' } }, clientToken);
+const creatorMessage = await call('Mensaje creadora a cliente', '/messages', { method: 'POST', body: { receiver_id: clientReg.body.user?.id, text: 'Hola desde QA creadora' } }, creatorToken);
+await call('Cliente recibe mensaje', `/messages?partner_id=${creatorId}`, {}, clientToken);
+if (creatorMessage.body.message?.id) await call('Marcar mensaje leído', `/messages/${creatorMessage.body.message.id}/read`, { method: 'PATCH', body: {} }, clientToken);
+await call('Tip sin saldo rechazado', '/tips', { method: 'POST', body: { receiver_id: creatorId, amount: 5 } }, clientToken);
+await call('Recarga demo desactivada', '/wallet/demo-credit', { method: 'POST', body: { amount: 40, method: 'yape' } }, clientToken);
+await call('Paquetes Yape', '/payments/yape/packs'); await call('Plan publicación actual', '/creator/publication-plan', {}, creatorToken);
+await call('Solicitud plan semanal QA', '/creator/publication-plan', { method: 'POST', body: { plan: 'basico', operation_code: `QA-${stamp}` } }, creatorToken);
+await call('Notificaciones creadora', '/notifications', {}, creatorToken); await call('Notificaciones cliente', '/notifications', {}, clientToken);
+console.log(JSON.stringify({ accounts: { creatorEmail, clientEmail }, ids: { creatorId, profileId, postId }, results }, null, 2));
