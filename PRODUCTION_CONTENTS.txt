@@ -1,0 +1,24 @@
+INCLUIDO
+- Backend Node/Express necesario para ejecución
+- package.json y package-lock.json
+- Esquema/migración PostgreSQL existente
+- Frontend React ya compilado (dist)
+- Assets públicos requeridos por el frontend
+- Plantilla .env sin contraseñas/JWT reales
+- Configuración PM2
+- Configuraciones Nginx para frontend/API
+- Script de verificación
+- Pruebas de integración del backend
+- Script de respaldo de PostgreSQL y uploads
+- Informe de preparación para producción
+
+ELIMINADO DEL ZIP ORIGINAL
+- node_modules de Windows/desarrollo
+- .env reales
+- base JSON local de pruebas
+- uploads de pruebas
+- logs
+- archivos temporales de QA
+- outputs/zips históricos
+- frontend/src y herramientas Vite no requeridos para servir el build
+- documentación temporal y work files
