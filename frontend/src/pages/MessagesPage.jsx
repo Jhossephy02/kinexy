@@ -91,8 +91,13 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!activePartner) { setAccess(null); return; }
     let active = true;
-    api.get(`/messages/access?partner_id=${activePartner.partner_id}`).then((data) => active && setAccess(data)).catch(() => active && setAccess(null));
-    return () => { active = false; };
+    const loadAccess = () => api.get(`/messages/access?partner_id=${activePartner.partner_id}`).then((data) => active && setAccess(data)).catch(() => active && setAccess(null));
+    const onRealtime = (event) => {
+      if (event.detail?.event === 'platform:update' && /\/api\/messages\/(unlock|access)/.test(event.detail?.data?.path || '')) loadAccess();
+    };
+    loadAccess();
+    window.addEventListener('kinexy-realtime', onRealtime);
+    return () => { active = false; window.removeEventListener('kinexy-realtime', onRealtime); };
   }, [activePartner]);
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
