@@ -113,11 +113,18 @@ const TOKEN_PRODUCTS = [
   { id: 'live_access', title: 'Acceso al en vivo', description: 'Entrada de demostración para una transmisión programada.', cost: 60, icon: 'video' },
 ];
 const safeUser = ({ password, ...user }) => ({ ...user, protected_owner: isProtectedOwner(user) });
-const validWhatsApp = value => /^\d{8,15}$/.test(String(value || ''));
+const normalizeWhatsApp = value => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 9 && digits.startsWith('9')) return `51${digits}`;
+  return digits;
+};
+const validWhatsApp = value => /^\d{11,15}$/.test(normalizeWhatsApp(value));
 const validTelegram = value => /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(String(value || ''));
 function adultBirthDate(value) { if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false; const born = new Date(`${value}T00:00:00Z`); if (Number.isNaN(born.getTime())) return false; const now = new Date(); let age = now.getUTCFullYear() - born.getUTCFullYear(); if (now.getUTCMonth() < born.getUTCMonth() || (now.getUTCMonth() === born.getUTCMonth() && now.getUTCDate() < born.getUTCDate())) age -= 1; return age >= 18 && age <= 120; }
 function safeProfile(profile) { const { contact_whatsapp, contact_telegram, ...publicProfile } = profile; return { ...publicProfile, contact_whatsapp_enabled: validWhatsApp(contact_whatsapp), contact_telegram_enabled: validTelegram(contact_telegram), contact_price_tokens: Number(profile.contact_price_tokens || 10) }; }
-function contactAccess(profile, userId, unlockedFromDb = false) { const unlocked = config.BETA_FREE_ACCESS || unlockedFromDb || Number(profile.owner_id) === Number(userId) || db.contact_unlocks.some(item => Number(item.user_id) === Number(userId) && Number(item.profile_id) === Number(profile.id)); const channels = { whatsapp: validWhatsApp(profile.contact_whatsapp), telegram: validTelegram(profile.contact_telegram) }; return { unlocked, price_tokens: config.BETA_FREE_ACCESS ? 0 : Number(profile.contact_price_tokens || 10), beta_free: config.BETA_FREE_ACCESS, channels, links: unlocked ? { ...(channels.whatsapp ? { whatsapp: `https://wa.me/${profile.contact_whatsapp}` } : {}), ...(channels.telegram ? { telegram: `https://t.me/${profile.contact_telegram}` } : {}) } : {} }; }
+function contactAccess(profile, userId, unlockedFromDb = false) { const unlocked = config.BETA_FREE_ACCESS || unlockedFromDb || Number(profile.owner_id) === Number(userId) || db.contact_unlocks.some(item => Number(item.user_id) === Number(userId) && Number(item.profile_id) === Number(profile.id)); const channels = { whatsapp: validWhatsApp(profile.contact_whatsapp), telegram: validTelegram(profile.contact_telegram) }; return { unlocked, price_tokens: config.BETA_FREE_ACCESS ? 0 : Number(profile.contact_price_tokens || 10), beta_free: config.BETA_FREE_ACCESS, channels, links: unlocked ? { ...(channels.whatsapp ? { whatsapp: `https://wa.me/${normalizeWhatsApp(profile.contact_whatsapp)}` } : {}), ...(channels.telegram ? { telegram: `https://t.me/${profile.contact_telegram}` } : {}) } : {} }; }
 const tokenFor = (user) => jwt.sign({ id: user.id, role: user.role }, config.JWT_SECRET, { expiresIn: config.JWT_EXPIRES_IN });
 async function findUser(email) { const normalized = String(email || '').trim().toLowerCase(); return db.mode === 'postgres' ? db.findUser(normalized) : db.users.find((user) => String(user.email || '').trim().toLowerCase() === normalized); }
 async function getUser(id) { return db.mode === 'postgres' ? db.getUser(id) : db.users.find((user) => Number(user.id) === Number(id)); }
