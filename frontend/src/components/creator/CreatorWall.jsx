@@ -9,6 +9,7 @@ const photoUrl = value => /^(\/|https?:|data:)/.test(value || '');
 export default function CreatorWall({ profile, posts = [], isAuthenticated, onUnlock, unlocking }) {
   const photos = [...new Set([profile.photo, ...(Array.isArray(profile.photos) ? profile.photos : [])].filter(photoUrl))];
   const [selected, setSelected] = useState(0);
+  const [lightbox, setLightbox] = useState(null);
   const [contact, setContact] = useState(null);
   const [contactError, setContactError] = useState('');
   const [pending, setPending] = useState(false);
@@ -22,7 +23,7 @@ export default function CreatorWall({ profile, posts = [], isAuthenticated, onUn
   const [reportStatus, setReportStatus] = useState('');
   const hasContact = profile.contact_whatsapp_enabled || profile.contact_telegram_enabled;
   useEffect(() => {
-    setSelected(0); setContact(null); setContactError('');
+    setSelected(0); setLightbox(null); setContact(null); setContactError('');
     if (!hasContact || !isAuthenticated) return;
     let active = true;
     contactService.status(profile.id).then(result => { if (active) setContact(result); }).catch(error => { if (active) setContactError(error.message); });
@@ -57,11 +58,13 @@ export default function CreatorWall({ profile, posts = [], isAuthenticated, onUn
   }
   const price = contact?.price_tokens ?? profile.contact_price_tokens ?? 10;
   const paid = posts.filter(post => post.type === 'photo' || post.type === 'gallery' || post.type === 'video');
+  useEffect(() => { const close = event => { if (event.key === 'Escape') setLightbox(null); }; window.addEventListener('keydown', close); return () => window.removeEventListener('keydown', close); }, []);
+  const openImage = (url, alt) => setLightbox({ url, alt });
 
   return <article className="creator-wall directory-detail">
     <nav className="detail-tabs" aria-label="Secciones del anuncio"><a href="#galeria">Galería</a><a href="#descripcion">Sobre mí</a><a href="#informacion">Información</a><a href="#contenido">Publicaciones</a><a href="#opiniones">Opiniones ({reviewSummary.count})</a></nav>
     <div className="detail-gallery" id="galeria">
-      <div className="detail-featured">{photos[selected] ? <img src={photos[selected]} alt={`Foto ${selected + 1} de ${profile.name}`} /> : <div className="detail-no-photo">Sin foto pública</div>}</div>
+      <div className="detail-featured">{photos[selected] ? <button className="detail-photo-open" onClick={() => openImage(photos[selected], `Foto ${selected + 1} de ${profile.name}`)} aria-label="Ampliar foto"><img src={photos[selected]} alt={`Foto ${selected + 1} de ${profile.name}`} /><span>⌕ Ampliar</span></button> : <div className="detail-no-photo">Sin foto pública</div>}</div>
       {photos.length > 1 && <div className="detail-thumbs" aria-label="Fotos del perfil">{photos.map((url, index) => <button key={url} className={index === selected ? 'selected' : ''} onClick={() => setSelected(index)} aria-label={`Ver foto ${index + 1}`}><img src={url} alt="" loading="lazy" /></button>)}</div>}
     </div>
     <div className="detail-info">
@@ -88,10 +91,11 @@ export default function CreatorWall({ profile, posts = [], isAuthenticated, onUn
     </div>}
     <section className="detail-content" id="contenido"><h2>Fotos y videos publicados</h2><p>Durante la beta todas las publicaciones son visibles gratuitamente. Los tokens se usan únicamente para probar el acceso al chat.</p>
       {paid.length ? <div className="detail-posts">{paid.map(post => <article key={post.id} className="detail-post">
-        <div className="detail-post-media">{post.locked ? <div className="detail-locked"><span>Contenido protegido</span><b>{post.visibility === 'tokens' ? `${post.price_tokens} tokens` : 'Solo miembros'}</b></div> : post.media_url ? <PostImage src={post.media_url} type={post.type === 'video' ? 'video' : 'photo'} alt={post.title} /> : <div className="detail-no-photo">Sin archivo disponible</div>}</div>
+        <div className="detail-post-media">{post.locked ? <div className="detail-locked"><span>Contenido protegido</span><b>{post.visibility === 'tokens' ? `${post.price_tokens} tokens` : 'Solo miembros'}</b></div> : post.media_url ? post.type === 'video' ? <PostImage src={post.media_url} type="video" alt={post.title} /> : <button className="detail-post-open" onClick={() => openImage(post.media_url, post.title)} aria-label={`Ampliar ${post.title}`}><PostImage src={post.media_url} type="photo" alt={post.title} /><span>⌕ Ver foto</span></button> : <div className="detail-no-photo">Sin archivo disponible</div>}</div>
         <div className="detail-post-copy"><h3>{post.title}</h3>{post.caption && <p>{post.caption}</p>}{post.locked && (post.visibility === 'tokens' ? isAuthenticated ? <button onClick={() => onUnlock(post)} disabled={unlocking === post.id}>{unlocking === post.id ? 'Procesando…' : `Desbloquear · ${post.price_tokens} tokens`}</button> : <Link to="/login">Inicia sesión para desbloquear</Link> : <Link to={isAuthenticated ? '/memberships' : '/login'}>Consultar acceso</Link>)}</div>
       </article>)}</div> : <div className="detail-empty">Todavía no hay publicaciones.</div>}
     </section>
+    {lightbox && <div className="photo-lightbox" role="dialog" aria-modal="true" aria-label="Foto ampliada" onClick={() => setLightbox(null)}><button className="photo-lightbox-close" onClick={() => setLightbox(null)} aria-label="Cerrar foto">×</button><img src={lightbox.url} alt={lightbox.alt} onClick={event => event.stopPropagation()}/><p>{lightbox.alt}</p></div>}
     <section className="detail-reviews" id="opiniones"><div><span className="detail-category">EXPERIENCIAS</span><h2>Opiniones sobre {profile.name}</h2><p className="review-score">{reviewSummary.count ? <><strong>{reviewSummary.average}</strong> de 5 · {reviewSummary.count} {reviewSummary.count === 1 ? 'opinión' : 'opiniones'}</> : 'Aún no hay opiniones. Sé la primera persona en compartir una experiencia.'}</p></div>
       <div className="review-list">{reviews.map(review => <article key={review.id}><div><strong>{review.author_name}</strong><span>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span></div><p>{review.text}</p><time>{new Date(review.updated_at || review.created_at).toLocaleDateString('es-PE')}</time></article>)}</div>
       {isAuthenticated ? <form className="review-form" onSubmit={submitReview}><h3>Escribe tu opinión</h3><label>Calificación<select value={reviewForm.rating} onChange={event => setReviewForm(current => ({ ...current, rating: Number(event.target.value) }))}>{[5,4,3,2,1].map(value => <option key={value} value={value}>{value} estrellas</option>)}</select></label><label>Tu experiencia<textarea required minLength="10" maxLength="800" placeholder="Cuenta cómo fue tu experiencia de forma respetuosa." value={reviewForm.text} onChange={event => setReviewForm(current => ({ ...current, text: event.target.value }))} /></label><button>Publicar opinión</button>{reviewStatus && <p role="status">{reviewStatus}</p>}</form> : <Link className="review-login" to="/login">Inicia sesión para dejar una opinión</Link>}
