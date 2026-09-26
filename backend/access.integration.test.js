@@ -6,6 +6,7 @@ const { createApp } = require('./server');
 const config = require('./src/config');
 
 test('precio por foto y niveles de membresía restringen archivo y saldo', async () => {
+  const previousBeta = config.BETA_FREE_ACCESS; config.BETA_FREE_ACCESS = false;
   const db = {
     mode: 'json', users: [
       { id: 1, name: 'Admin', email: 'admin-access', password: 'pass', role: 'superadmin' },
@@ -59,6 +60,7 @@ test('precio por foto y niveles de membresía restringen archivo y saldo', async
     assert.equal((await request(`/api/creator/posts/${memberPost.data.post.id}/media`, client)).status, 200);
     assert.equal((await request('/api/wallet', client)).data.balance, 25);
   } finally {
+    config.BETA_FREE_ACCESS = previousBeta;
     await new Promise(resolve => server.close(resolve));
     fs.rmSync(file, { force: true });
   }

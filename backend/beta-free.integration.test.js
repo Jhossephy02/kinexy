@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const config = require('./src/config');
 const { createApp } = require('./server');
 
-test('beta gratuita publica perfiles y contenido; solo el chat exige tokens', async () => {
+test('beta gratuita publica perfiles, pero las fotos exclusivas conservan su precio en tokens', async () => {
   const previous = config.BETA_FREE_ACCESS;
   config.BETA_FREE_ACCESS = true;
   const db = {
@@ -35,7 +35,7 @@ test('beta gratuita publica perfiles y contenido; solo el chat exige tokens', as
     assert.equal(profiles.data.profiles[0].id, 9);
     const posts = await request('/api/creator/posts/1');
     assert.equal(posts.status, 200);
-    assert.equal(posts.data.posts[0].locked, false);
+    assert.equal(posts.data.posts[0].locked, true);
     const contact = await request('/api/profiles/9/contact', client);
     assert.equal(contact.data.unlocked, true);
     assert.equal(contact.data.price_tokens, 0);
