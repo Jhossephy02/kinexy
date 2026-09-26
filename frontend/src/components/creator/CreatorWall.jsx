@@ -10,6 +10,7 @@ export default function CreatorWall({ profile, posts = [], isAuthenticated, onUn
   const photos = [...new Set([profile.photo, ...(Array.isArray(profile.photos) ? profile.photos : [])].filter(photoUrl))];
   const [selected, setSelected] = useState(0);
   const [lightbox, setLightbox] = useState(null);
+  const [resolvedPostUrls, setResolvedPostUrls] = useState({});
   const [contact, setContact] = useState(null);
   const [contactError, setContactError] = useState('');
   const [pending, setPending] = useState(false);
@@ -23,7 +24,7 @@ export default function CreatorWall({ profile, posts = [], isAuthenticated, onUn
   const [reportStatus, setReportStatus] = useState('');
   const hasContact = profile.contact_whatsapp_enabled || profile.contact_telegram_enabled;
   useEffect(() => {
-    setSelected(0); setLightbox(null); setContact(null); setContactError('');
+    setSelected(0); setLightbox(null); setResolvedPostUrls({}); setContact(null); setContactError('');
     if (!hasContact || !isAuthenticated) return;
     let active = true;
     contactService.status(profile.id).then(result => { if (active) setContact(result); }).catch(error => { if (active) setContactError(error.message); });
@@ -91,7 +92,7 @@ export default function CreatorWall({ profile, posts = [], isAuthenticated, onUn
     </div>}
     <section className="detail-content" id="contenido"><h2>Fotos y videos publicados</h2><p>Durante la beta todas las publicaciones son visibles gratuitamente. Los tokens se usan únicamente para probar el acceso al chat.</p>
       {paid.length ? <div className="detail-posts">{paid.map(post => <article key={post.id} className="detail-post">
-        <div className="detail-post-media">{post.locked ? <div className="detail-locked"><span>Contenido protegido</span><b>{post.visibility === 'tokens' ? `${post.price_tokens} tokens` : 'Solo miembros'}</b></div> : post.media_url ? post.type === 'video' ? <PostImage src={post.media_url} type="video" alt={post.title} /> : <button className="detail-post-open" onClick={() => openImage(post.media_url, post.title)} aria-label={`Ampliar ${post.title}`}><PostImage src={post.media_url} type="photo" alt={post.title} /><span>⌕ Ver foto</span></button> : <div className="detail-no-photo">Sin archivo disponible</div>}</div>
+        <div className="detail-post-media">{post.locked ? <div className="detail-locked"><span>Contenido protegido</span><b>{post.visibility === 'tokens' ? `${post.price_tokens} tokens` : 'Solo miembros'}</b></div> : post.media_url ? post.type === 'video' ? <PostImage src={post.media_url} type="video" alt={post.title} /> : <button className="detail-post-open" onClick={() => resolvedPostUrls[post.id] && openImage(resolvedPostUrls[post.id], post.title)} disabled={!resolvedPostUrls[post.id]} aria-label={`Ampliar ${post.title}`}><PostImage src={post.media_url} type="photo" alt={post.title} onResolved={url => setResolvedPostUrls(current => current[post.id] === url ? current : { ...current, [post.id]: url })}/><span>⌕ Ver foto</span></button> : <div className="detail-no-photo">Sin archivo disponible</div>}</div>
         <div className="detail-post-copy"><h3>{post.title}</h3>{post.caption && <p>{post.caption}</p>}{post.locked && (post.visibility === 'tokens' ? isAuthenticated ? <button onClick={() => onUnlock(post)} disabled={unlocking === post.id}>{unlocking === post.id ? 'Procesando…' : `Desbloquear · ${post.price_tokens} tokens`}</button> : <Link to="/login">Inicia sesión para desbloquear</Link> : <Link to={isAuthenticated ? '/memberships' : '/login'}>Consultar acceso</Link>)}</div>
       </article>)}</div> : <div className="detail-empty">Todavía no hay publicaciones.</div>}
     </section>

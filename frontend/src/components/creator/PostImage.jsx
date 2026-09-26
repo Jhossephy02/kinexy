@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AppIcon from '../ui/AppIcon.jsx';
 
-export default function PostImage({ src, alt = '', type = 'photo' }) {
+export default function PostImage({ src, alt = '', type = 'photo', onResolved }) {
   const [url, setUrl] = useState(src?.startsWith('/api/') ? '' : src);
   useEffect(() => {
     if (!src?.startsWith('/api/')) { setUrl(src); return; }
@@ -12,5 +12,6 @@ export default function PostImage({ src, alt = '', type = 'photo' }) {
       .catch(() => active && setUrl(''));
     return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [src]);
+  useEffect(() => { if (url) onResolved?.(url); }, [url, onResolved]);
   return url ? type === 'video' ? <video src={url} controls playsInline aria-label={alt}/> : <img src={url} alt={alt}/> : <span className="protected-media-placeholder"><AppIcon name="lock"/>Contenido protegido</span>;
 }
