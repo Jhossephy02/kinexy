@@ -1427,7 +1427,7 @@ function ReportFilters({ filters, setFilters, total }) {
 
 function Panel({ title, caption, icon, children }) {
   return (
-    <section className="moderation-panel">
+    <section className="moderation-panel enterprise-panel">
       <div className="panel-title">
         <span><Icon name={icon} /></span>
         <div>
