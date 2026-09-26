@@ -183,7 +183,7 @@ export default function MessagesPage() {
               </button>
               <h2 style={{ fontSize: '1.2rem', margin: 0 }}>{activePartner.partner_name}</h2>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input aria-label="Tokens para el tip" type="number" min="1" max="10000" value={tipAmount} onChange={(event) => setTipAmount(event.target.value)} style={{ width: '62px', padding: '7px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--black)', color: 'var(--text)' }} />
+                <input aria-label="Tokens para el tip" type="text" inputMode="numeric" pattern="[0-9]*" min="1" max="10000" value={tipAmount} onChange={(event) => setTipAmount(event.target.value)} style={{ width: '62px', padding: '7px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--black)', color: 'var(--text)' }} />
                 <button onClick={sendTip} disabled={sendingTip} style={{ padding: '8px 11px', border: '1px solid #704053', borderRadius: '9px', background: '#2a1b24', color: '#ffd1df', fontWeight: '700', cursor: 'pointer' }}>{sendingTip ? '...' : 'Enviar tip'}</button>
               </div>
             </header>
