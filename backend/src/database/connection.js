@@ -100,10 +100,12 @@ function initJson() {
   save();
   data.comments ||= [];
   data.profile_reviews ||= [];
+  data.profile_views ||= [];
+  data.profile_likes ||= [];
   data.post_likes ||= [];
   data.payments ||= [];
   data.withdrawal_requests ||= [];
-  return { mode: 'json', users: data.users, profiles: data.profiles, membership_plans: data.membership_plans, membership_subscriptions: data.membership_subscriptions, creator_publication_subscriptions: data.creator_publication_subscriptions, token_wallets: data.token_wallets, token_transactions: data.token_transactions, token_unlocks: data.token_unlocks, post_unlocks: data.post_unlocks, contact_unlocks: data.contact_unlocks, messages: data.messages, message_unlocks: data.message_unlocks, tips: data.tips, comments: data.comments, profile_reviews: data.profile_reviews, post_likes: data.post_likes, payments: data.payments, withdrawal_requests: data.withdrawal_requests, creator_posts: data.creator_posts, creator_sales: data.creator_sales, creator_audience: data.creator_audience, creator_lives: data.creator_lives, creator_live_moderators: data.creator_live_moderators, moderation_reports: data.moderation_reports, moderation_actions: data.moderation_actions, save, nextId: (items) => items.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1 };
+  return { mode: 'json', users: data.users, profiles: data.profiles, membership_plans: data.membership_plans, membership_subscriptions: data.membership_subscriptions, creator_publication_subscriptions: data.creator_publication_subscriptions, token_wallets: data.token_wallets, token_transactions: data.token_transactions, token_unlocks: data.token_unlocks, post_unlocks: data.post_unlocks, contact_unlocks: data.contact_unlocks, messages: data.messages, message_unlocks: data.message_unlocks, tips: data.tips, comments: data.comments, profile_reviews: data.profile_reviews, profile_views: data.profile_views, profile_likes: data.profile_likes, post_likes: data.post_likes, payments: data.payments, withdrawal_requests: data.withdrawal_requests, creator_posts: data.creator_posts, creator_sales: data.creator_sales, creator_audience: data.creator_audience, creator_lives: data.creator_lives, creator_live_moderators: data.creator_live_moderators, moderation_reports: data.moderation_reports, moderation_actions: data.moderation_actions, save, nextId: (items) => items.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1 };
 }
 
 async function initPostgres() {

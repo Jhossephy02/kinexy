@@ -6,7 +6,7 @@ import './CreatorWall.css';
 
 const photoUrl = value => /^(\/|https?:|data:)/.test(value || '');
 
-export default function CreatorWall({ profile, posts = [], isAuthenticated, onUnlock, unlocking }) {
+export default function CreatorWall({ profile, posts = [], isAuthenticated, onUnlock, unlocking, engagement, onLike }) {
   const photos = [...new Set([profile.photo, ...(Array.isArray(profile.photos) ? profile.photos : [])].filter(photoUrl))];
   const [selected, setSelected] = useState(0);
   const [lightbox, setLightbox] = useState(null);
@@ -71,7 +71,7 @@ export default function CreatorWall({ profile, posts = [], isAuthenticated, onUn
     <div className="detail-info">
       <span className="detail-category">{profile.category || 'Anuncio'}</span><h1>{profile.name}</h1>
       <p className="detail-location">◎ {profile.city}{profile.area ? ` · ${profile.area}` : ''}</p>
-      <div className="detail-actions"><button className={saved ? 'active' : ''} onClick={toggleSaved}>{saved ? '♥ Guardado' : '♡ Guardar anuncio'}</button>{isAuthenticated ? <button onClick={() => setReportOpen(value => !value)}>⚑ Reportar</button> : <Link to="/login">Inicia sesión para reportar</Link>}</div>
+      <div className="detail-actions"><button className={saved ? 'active' : ''} onClick={toggleSaved}>{saved ? '♥ Guardado' : '♡ Guardar anuncio'}</button>{isAuthenticated && <button className={engagement?.liked ? 'active' : ''} onClick={onLike}>{engagement?.liked ? '♥ Me gusta' : '♡ Me gusta'} · {engagement?.likes || 0}</button>}<span className="detail-views">◉ {engagement?.views || 0} vistas</span>{isAuthenticated ? <button onClick={() => setReportOpen(value => !value)}>⚑ Reportar</button> : <Link to="/login">Inicia sesión para reportar</Link>}</div>
       {reportOpen && <form className="detail-report" onSubmit={submitReport}><label>Motivo<select value={reportForm.reason} onChange={event => setReportForm(current => ({ ...current, reason: event.target.value }))}><option>Información incorrecta</option><option>Contenido no autorizado</option><option>Posible fraude</option><option>Riesgo o seguridad</option><option>Otro</option></select></label><label>Detalle opcional<textarea maxLength="800" value={reportForm.details} onChange={event => setReportForm(current => ({ ...current, details: event.target.value }))} /></label><button>Enviar reporte</button></form>}
       {reportStatus && <p className="detail-feedback" role="status">{reportStatus}</p>}
       <div className="detail-facts">{[
@@ -90,7 +90,7 @@ export default function CreatorWall({ profile, posts = [], isAuthenticated, onUn
         {contactError && <p role="alert">{contactError}</p>}
       </section>}
     </div>}
-    <section className="detail-content" id="contenido"><h2>Fotos y videos publicados</h2><p>Durante la beta todas las publicaciones son visibles gratuitamente. Los tokens se usan únicamente para probar el acceso al chat.</p>
+    <section className="detail-content" id="contenido"><h2>Fotos y videos publicados</h2><p>Las publicaciones públicas son gratuitas. Las fotos marcadas como exclusivas se desbloquean con tokens.</p>
       {paid.length ? <div className="detail-posts">{paid.map(post => <article key={post.id} className="detail-post">
         <div className="detail-post-media">{post.locked ? <div className="detail-locked"><span>Contenido protegido</span><b>{post.visibility === 'tokens' ? `${post.price_tokens} tokens` : 'Solo miembros'}</b></div> : post.media_url ? post.type === 'video' ? <PostImage src={post.media_url} type="video" alt={post.title} /> : <button className="detail-post-open" onClick={() => resolvedPostUrls[post.id] && openImage(resolvedPostUrls[post.id], post.title)} disabled={!resolvedPostUrls[post.id]} aria-label={`Ampliar ${post.title}`}><PostImage src={post.media_url} type="photo" alt={post.title} onResolved={url => setResolvedPostUrls(current => current[post.id] === url ? current : { ...current, [post.id]: url })}/><span>⌕ Ver foto</span></button> : <div className="detail-no-photo">Sin archivo disponible</div>}</div>
         <div className="detail-post-copy"><h3>{post.title}</h3>{post.caption && <p>{post.caption}</p>}{post.locked && (post.visibility === 'tokens' ? isAuthenticated ? <button onClick={() => onUnlock(post)} disabled={unlocking === post.id}>{unlocking === post.id ? 'Procesando…' : `Desbloquear · ${post.price_tokens} tokens`}</button> : <Link to="/login">Inicia sesión para desbloquear</Link> : <Link to={isAuthenticated ? '/memberships' : '/login'}>Consultar acceso</Link>)}</div>

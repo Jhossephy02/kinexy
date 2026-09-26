@@ -54,7 +54,7 @@ class PostgresDatabase {
     await this.pool.query("INSERT INTO creator_store (id,payload) VALUES (1,'{}'::jsonb) ON CONFLICT (id) DO NOTHING");
     const creatorState = await this.pool.query('SELECT payload FROM creator_store WHERE id=1');
     const stored = creatorState.rows[0]?.payload || {};
-    const persistedCollections = ['creator_posts','creator_sales','creator_audience','creator_lives','creator_live_moderators','messages','message_unlocks','tips','comments','profile_reviews','post_likes','membership_subscriptions','notifications','payments'];
+    const persistedCollections = ['creator_posts','creator_sales','creator_audience','creator_lives','creator_live_moderators','messages','message_unlocks','tips','comments','profile_reviews','profile_views','profile_likes','post_likes','membership_subscriptions','notifications','payments'];
     for (const key of persistedCollections) this[key] = Array.isArray(stored[key]) ? stored[key] : [];
     this.role_permissions = stored.role_permissions && typeof stored.role_permissions === 'object' ? stored.role_permissions : {};
     this.users = (await this.pool.query('SELECT id,name,email,role,created_at FROM users ORDER BY id')).rows;
@@ -69,7 +69,7 @@ class PostgresDatabase {
     this.contact_unlocks = contactUnlocks.rows;
   }
   async save() {
-    const payload = JSON.stringify({ creator_posts:this.creator_posts, creator_sales:this.creator_sales, creator_audience:this.creator_audience, creator_lives:this.creator_lives, creator_live_moderators:this.creator_live_moderators, messages:this.messages, message_unlocks:this.message_unlocks, tips:this.tips, comments:this.comments, profile_reviews:this.profile_reviews, post_likes:this.post_likes, membership_subscriptions:this.membership_subscriptions, notifications:this.notifications, payments:this.payments, role_permissions:this.role_permissions });
+    const payload = JSON.stringify({ creator_posts:this.creator_posts, creator_sales:this.creator_sales, creator_audience:this.creator_audience, creator_lives:this.creator_lives, creator_live_moderators:this.creator_live_moderators, messages:this.messages, message_unlocks:this.message_unlocks, tips:this.tips, comments:this.comments, profile_reviews:this.profile_reviews, profile_views:this.profile_views, profile_likes:this.profile_likes, post_likes:this.post_likes, membership_subscriptions:this.membership_subscriptions, notifications:this.notifications, payments:this.payments, role_permissions:this.role_permissions });
     await this.pool.query("INSERT INTO creator_store (id,payload,updated_at) VALUES (1,$1::jsonb,NOW()) ON CONFLICT (id) DO UPDATE SET payload=$1::jsonb,updated_at=NOW()", [payload]);
   }
   async findUser(email) { const r = await this.pool.query('SELECT * FROM users WHERE LOWER(email)=LOWER($1)', [email]); return r.rows[0]; }
