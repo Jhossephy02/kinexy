@@ -173,6 +173,45 @@ class PostgresDatabase {
     const client=await this.pool.connect(); try { await client.query('BEGIN'); await client.query('INSERT INTO token_wallets (user_id) VALUES ($1),($2) ON CONFLICT DO NOTHING',[senderId,recipientId]); const sender=await client.query('UPDATE token_wallets SET balance=balance-$1,updated_at=NOW() WHERE user_id=$2 AND balance >= $1 RETURNING balance,updated_at',[amount,senderId]); if(!sender.rows[0]){await client.query('ROLLBACK');return null;} const recipient=await client.query('UPDATE token_wallets SET balance=balance+$1,updated_at=NOW() WHERE user_id=$2 RETURNING balance,updated_at',[amount,recipientId]); const now=new Date().toISOString(); await client.query('INSERT INTO token_transactions (user_id,amount,type,description,reference) VALUES ($1,$2,$3,$4,$5),($6,$7,$8,$9,$10)',[senderId,-amount,type,description,`user:${recipientId}`,recipientId,amount,`${type}_received`,`Recibido: ${description}`,`user:${senderId}`]); await client.query('COMMIT'); return {sender:sender.rows[0],recipient:recipient.rows[0],createdAt:now}; } catch(error){await client.query('ROLLBACK');throw error;} finally{client.release();}
   }
 
+  async createWithdrawal(userId, amount, method, destination) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('INSERT INTO token_wallets (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [userId]);
+      const wallet = await client.query('UPDATE token_wallets SET balance=balance-$1,updated_at=NOW() WHERE user_id=$2 AND balance >= $1 RETURNING balance,updated_at', [amount, userId]);
+      if (!wallet.rows[0]) { await client.query('ROLLBACK'); return null; }
+      const request = await client.query('INSERT INTO withdrawal_requests (user_id,amount_tokens,method,destination) VALUES ($1,$2,$3,$4) RETURNING *', [userId, amount, method, destination]);
+      await client.query("INSERT INTO token_transactions (user_id,amount,type,description,reference) VALUES ($1,$2,'withdrawal_requested',$3,$4)", [userId, -amount, `Retiro solicitado por ${amount} tokens`, `withdrawal:${request.rows[0].id}`]);
+      await client.query('COMMIT');
+      return { request: request.rows[0], wallet: wallet.rows[0] };
+    } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+  }
+
+  async listWithdrawals(userId = null) {
+    const values = userId ? [userId] : [];
+    const where = userId ? 'WHERE w.user_id=$1' : '';
+    const result = await this.pool.query(`SELECT w.*,u.name AS user_name,u.email AS user_email FROM withdrawal_requests w JOIN users u ON u.id=w.user_id ${where} ORDER BY CASE w.status WHEN 'pending' THEN 0 ELSE 1 END,w.created_at DESC LIMIT 200`, values);
+    return result.rows;
+  }
+
+  async reviewWithdrawal(id, reviewerId, decision, note) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const found = await client.query('SELECT * FROM withdrawal_requests WHERE id=$1 FOR UPDATE', [id]);
+      const withdrawal = found.rows[0];
+      if (!withdrawal || withdrawal.status !== 'pending') { await client.query('ROLLBACK'); return null; }
+      const updated = await client.query('UPDATE withdrawal_requests SET status=$1,reviewer_id=$2,review_note=$3,reviewed_at=NOW() WHERE id=$4 RETURNING *', [decision, reviewerId, note, id]);
+      if (decision === 'rejected') {
+        await client.query('INSERT INTO token_wallets (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [withdrawal.user_id]);
+        await client.query('UPDATE token_wallets SET balance=balance+$1,updated_at=NOW() WHERE user_id=$2', [withdrawal.amount_tokens, withdrawal.user_id]);
+        await client.query("INSERT INTO token_transactions (user_id,amount,type,description,reference) VALUES ($1,$2,'withdrawal_refund',$3,$4)", [withdrawal.user_id, withdrawal.amount_tokens, `Reembolso de retiro rechazado: ${withdrawal.amount_tokens} tokens`, `withdrawal:${withdrawal.id}`]);
+      }
+      await client.query('COMMIT');
+      return updated.rows[0];
+    } catch (error) { await client.query('ROLLBACK'); throw error; } finally { client.release(); }
+  }
+
 }
 
 async function connectPostgres(url) { const pool = new Pool({ connectionString: url, ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : false }); await pool.query('SELECT 1'); const db = new PostgresDatabase(pool); await db.init(); return db; }

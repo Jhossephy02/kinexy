@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import api, { walletService, paymentsService } from '../api/client';
+import api, { walletService, paymentsService, profilesService, tipsService, withdrawalsService } from '../api/client';
 import AppIcon from '../components/ui/AppIcon.jsx';
 import './WalletPage.css';
 
@@ -16,6 +16,8 @@ export default function WalletPage() {
   const [operationCode, setOperationCode] = useState('');
   const [recharging, setRecharging] = useState(false);
   const [notice, setNotice] = useState('');
+  const [withdrawals, setWithdrawals] = useState([]); const [profiles, setProfiles] = useState([]); const [tipTo, setTipTo] = useState(''); const [tipAmount, setTipAmount] = useState(''); const [withdrawAmount, setWithdrawAmount] = useState(''); const [withdrawMethod, setWithdrawMethod] = useState('yape'); const [destination, setDestination] = useState(''); const [busy, setBusy] = useState(false); const [filter, setFilter] = useState('all');
+  const isCreator = ['creator','admin','superadmin'].includes(user?.role);
 
   const load = async () => {
     try {
@@ -24,10 +26,10 @@ export default function WalletPage() {
       setWallet(data);
       const historyData = await api.get('/wallet/history');
       setTransactions(historyData?.transactions || data?.transactions || []);
-      const [packData, paymentData] = await Promise.all([paymentsService.packs(), paymentsService.mine()]);
+      const [packData, paymentData, withdrawalData, profileData] = await Promise.all([paymentsService.packs(), paymentsService.mine(), withdrawalsService.mine(), profilesService.list({})]);
       setPacks(packData.packs || []);
       if (packData.packs?.length && !packData.packs.some(item => item.tokens === selectedPack)) setSelectedPack(packData.packs[0].tokens);
-      setPayments(paymentData.payments || []);
+      setPayments(paymentData.payments || []); setWithdrawals(withdrawalData.withdrawals || []); setProfiles((profileData.profiles || []).filter(item => item.owner_id && Number(item.owner_id) !== Number(user?.id)));
     } catch (err) {
       setError(err.message);
     }
@@ -53,6 +55,11 @@ export default function WalletPage() {
     finally { setRecharging(false); }
   }
 
+  async function donate() { setBusy(true); try { await tipsService.send(Number(tipTo), Number(tipAmount)); setTipAmount(''); setNotice('Donación enviada correctamente.'); await load(); } catch (err) { setError(err.message); } finally { setBusy(false); } }
+  async function withdraw() { setBusy(true); try { const result = await withdrawalsService.request({ amount_tokens: Number(withdrawAmount), method: withdrawMethod, destination }); setWithdrawAmount(''); setDestination(''); setNotice(`Retiro solicitado. Recibirás S/ ${Number(result.amount_pen).toFixed(2)} cuando sea validado.`); await load(); } catch (err) { setError(err.message); } finally { setBusy(false); } }
+  const filteredTransactions = transactions.filter(item => filter === 'all' || (filter === 'in' && item.amount > 0) || (filter === 'out' && item.amount < 0) || (filter === 'tips' && String(item.type).includes('tip')) || (filter === 'withdrawals' && String(item.type).startsWith('withdrawal')));
+  const movementName = item => ({ manual_yape_credit:'Recarga aprobada', tip:'Donación enviada', tip_received:'Donación recibida', withdrawal_requested:'Retiro solicitado', withdrawal_refund:'Retiro reembolsado', message_unlock:'Acceso a chat', content_unlock:'Contenido desbloqueado', contact_unlock:'Contacto desbloqueado' }[item.type] || item.description || 'Movimiento de tokens');
+
   if (!isAuthenticated) return <Navigate to="/login" replace/>;
 
   return (
@@ -63,7 +70,7 @@ export default function WalletPage() {
           <h1>Tus tokens,<br/><em>siempre visibles.</em></h1>
           <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
             <a href="#recargar" className="primary-button" style={{ textDecoration: 'none' }}>Recargar mi cuenta</a>
-            <Link className="secondary-button" to="/messages" style={{ textDecoration: 'none' }}>Enviar tip</Link>
+            <a className="secondary-button" href="#donar" style={{ textDecoration: 'none' }}>Donar tokens</a>
           </div>
         </div>
         <div className="wallet-balance">
@@ -92,6 +99,8 @@ export default function WalletPage() {
           </> : <p className="yape-unavailable">Las recargas están temporalmente desactivadas hasta configurar los precios en soles.</p>}
           {payments.length > 0 && <div className="yape-status"><h3>Mis solicitudes</h3>{payments.map(payment => <p key={payment.id}>{payment.amount_tokens} tokens · S/ {Number(payment.amount_pen).toFixed(2)} · {payment.status === 'pending' ? 'Pendiente de revisión' : payment.status === 'approved' ? 'Aprobada' : 'Rechazada'}{payment.review_note ? ` · ${payment.review_note}` : ''}</p>)}</div>}
         </section>
+        <section className="wallet-recharge" id="donar"><header><span className="eyebrow">DONAR</span><h2>Apoya a una creadora<span>.</span></h2><p>La donación llega al instante y queda registrada en ambas billeteras.</p></header><label>Creadora<select value={tipTo} onChange={event => setTipTo(event.target.value)}><option value="">Selecciona una creadora</option>{profiles.map(profile => <option key={profile.id} value={profile.owner_id}>{profile.name}</option>)}</select></label><label>Tokens a donar<input type="number" min="1" value={tipAmount} onChange={event => setTipAmount(event.target.value)} placeholder="Ej. 10"/></label><button className="primary-button" disabled={busy || !tipTo || Number(tipAmount) < 1} onClick={donate}>Donar tokens</button></section>
+        {isCreator && <section className="wallet-recharge"><header><span className="eyebrow">RETIRAR</span><h2>Retira tus ganancias<span>.</span></h2><p>Valor de retiro: S/ 0.30 por token. La solicitud reserva tokens hasta que un moderador valide el pago manual.</p></header><label>Tokens a retirar<input type="number" min="1" value={withdrawAmount} onChange={event => setWithdrawAmount(event.target.value)} placeholder="Ej. 100"/></label>{Number(withdrawAmount) > 0 && <p><strong>Recibirás S/ {(Number(withdrawAmount) * 0.3).toFixed(2)}</strong></p>}<label>Método<select value={withdrawMethod} onChange={event => setWithdrawMethod(event.target.value)}><option value="yape">Yape</option><option value="bank">Cuenta bancaria</option></select></label><label>{withdrawMethod === 'yape' ? 'Número Yape' : 'Cuenta bancaria o CCI'}<input value={destination} onChange={event => setDestination(event.target.value)} placeholder="Destino del pago"/></label><button className="primary-button" disabled={busy || Number(withdrawAmount) < 1 || destination.trim().length < 6} onClick={withdraw}>Solicitar retiro</button>{withdrawals.length > 0 && <div className="yape-status"><h3>Mis retiros</h3>{withdrawals.map(item => <p key={item.id}>{item.amount_tokens} tokens · S/ {(Number(item.amount_tokens) * 0.3).toFixed(2)} · {item.status}{item.review_note ? ` · ${item.review_note}` : ''}</p>)}</div>}</section>}
         <aside className="wallet-history" style={{ width: '100%', maxWidth: '800px', margin: '0 auto' }}>
           <header>
             <span><AppIcon name="history"/></span>
@@ -100,14 +109,14 @@ export default function WalletPage() {
               <p>Historial de transacciones de tu cuenta.</p>
             </div>
           </header>
-          {transactions.length > 0 ? (
-            transactions.map((transaction) => (
+          <div className="wallet-filters">{[['all','Todos'],['in','Ingresos'],['out','Gastos'],['tips','Donaciones'],['withdrawals','Retiros']].map(([key,label]) => <button key={key} className={filter === key ? 'is-selected' : ''} onClick={() => setFilter(key)}>{label}</button>)}</div>{filteredTransactions.length > 0 ? (
+            filteredTransactions.map((transaction) => (
               <article key={transaction.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid var(--border)', gap: '12px' }}>
                 <span style={{ fontSize: '20px', flexShrink: 0 }}>
                   {transaction.amount > 0 ? '⬆️' : '⬇️'}
                 </span>
                 <div style={{ flex: 1 }}>
-                  <strong style={{ display: 'block', fontSize: '0.9rem' }}>{transaction.description || (transaction.amount > 0 ? 'Recarga de tokens' : 'Gasto de tokens')}</strong>
+                  <strong style={{ display: 'block', fontSize: '0.9rem' }}>{movementName(transaction)}</strong>
                   <time style={{ color: 'var(--muted)', fontSize: '0.8rem' }} dateTime={transaction.created_at}>
                     {new Date(transaction.created_at).toLocaleString('es-PE')}
                   </time>

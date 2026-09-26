@@ -37,6 +37,8 @@ export const moderationService = { overview: () => api.get('/moderation/overview
 export const permissionsService = { mine: () => api.get('/permissions/me'), matrix: () => api.get('/admin/role-permissions'), update: (role, permission, enabled) => api.patch(`/admin/role-permissions/${role}`, { permission, enabled }) };
 export const walletService = { get: () => api.get('/wallet'), demoCredit: (amount, method) => api.post('/wallet/demo-credit', { amount, method }), spend: (productId) => api.post('/wallet/spend', { product_id: productId }) };
 export const paymentsService = { packs: () => api.get('/payments/yape/packs'), mine: () => api.get('/payments/yape/mine'), request: (tokens, operation_code) => api.post('/payments/yape', { tokens, operation_code }), reviewQueue: () => api.get('/moderation/payments'), review: (id, decision, note = '') => api.patch(`/moderation/payments/${id}`, { decision, note }) };
+export const tipsService = { send: (receiver_id, amount) => api.post('/tips', { receiver_id, amount }) };
+export const withdrawalsService = { mine: () => api.get('/wallet/withdrawals'), request: data => api.post('/wallet/withdrawals', data), reviewQueue: () => api.get('/moderation/withdrawals'), review: (id, decision, note = '') => api.patch(`/moderation/withdrawals/${id}`, { decision, note }) };
 export const publicationPlanService = { get: () => api.get('/creator/publication-plan'), request: (plan, operation_code) => api.post('/creator/publication-plan', { plan, operation_code }) };
 export const creatorService = {
   studio: () => api.get('/creator/studio'),

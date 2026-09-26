@@ -147,6 +147,20 @@ CREATE TABLE IF NOT EXISTS contact_unlocks (
 
 CREATE INDEX IF NOT EXISTS token_transactions_user_idx ON token_transactions(user_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS withdrawal_requests (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  amount_tokens INTEGER NOT NULL CHECK (amount_tokens > 0),
+  method TEXT NOT NULL CHECK (method IN ('yape','bank')),
+  destination TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+  reviewer_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  review_note TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  reviewed_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS withdrawal_requests_user_idx ON withdrawal_requests(user_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS creator_store (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   payload JSONB NOT NULL DEFAULT '{}'::jsonb,
