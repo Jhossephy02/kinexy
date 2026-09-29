@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import AppIcon from '../components/ui/AppIcon.jsx';
 
-export default function MessagesPage() {
+export default function MessagesPage({ embedded = false }) {
   const { user, isAuthenticated } = useAuth();
   const location = useLocation();
   const [conversations, setConversations] = useState([]);
@@ -143,8 +143,9 @@ export default function MessagesPage() {
     finally { setSendingTip(false); }
   };
 
+  const Root = embedded ? 'section' : 'main';
   return (
-    <main className="messages-page" id="main-content" style={{ display: 'flex', height: 'calc(100dvh - 94px)', minHeight: 0, overflow: 'hidden', background: 'var(--black)' }}>
+    <Root className={`messages-page ${embedded ? 'messages-embedded' : ''}`} id={embedded ? undefined : 'main-content'} style={{ display: 'flex', height: embedded ? 'min(700px, calc(100dvh - 235px))' : 'calc(100dvh - 94px)', minHeight: embedded ? '520px' : 0, overflow: 'hidden', background: 'var(--black)', borderRadius: embedded ? '16px' : 0, border: embedded ? '1px solid var(--border)' : 0 }}>
       <aside className={`messages-sidebar ${activePartner ? 'mobile-hidden' : ''}`} style={{ width: '300px', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
         <header style={{ padding: '20px', borderBottom: '1px solid var(--border)' }}>
           <span className="eyebrow"><AppIcon name="message" /> MENSAJES</span>
@@ -224,6 +225,6 @@ export default function MessagesPage() {
           .mobile-only { display: none !important; }
         }
       `}</style>
-    </main>
+    </Root>
   );
 }
