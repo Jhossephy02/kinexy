@@ -97,10 +97,10 @@ const TOKEN_VALUE_PEN = 0.50;
 const WITHDRAWAL_VALUE_PEN = 0.30;
 const YAPE_PACKS = [{ tokens:40, soles:20 },{ tokens:80, soles:40 },{ tokens:180, soles:90 },{ tokens:460, soles:230 }];
 const PUBLICATION_PLANS = [
-  { id:'free', name:'Gratis', soles:0, benefits:['Anuncio publicado durante 7 días','Perfil visible en el directorio'] },
-  { id:'plus', name:'Plus', soles:40, benefits:['Anuncio publicado durante 7 días','Prioridad en el directorio','Soporte prioritario'] },
-  { id:'pro', name:'Pro', soles:80, benefits:['Anuncio publicado durante 7 días','Mayor prioridad en el directorio','Soporte prioritario'] },
-  { id:'elite', name:'Elite', soles:120, benefits:['Anuncio publicado durante 7 días','Máxima prioridad en el directorio','Distintivo destacado'] }
+  { id:'free', name:'Gratis', soles:0, benefits:['Perfil visible sin costo','Publica fotos y contenido','Renovación semanal desde tu dashboard'] },
+  { id:'plus', name:'Plus', soles:40, benefits:['Todo lo incluido en Gratis','Prioridad sobre perfiles Gratis','Soporte prioritario','Estadísticas de alcance'] },
+  { id:'pro', name:'Pro', soles:80, benefits:['Todo lo incluido en Plus','Mayor prioridad en el directorio','Distintivo Pro en tu perfil','Promoción semanal en resultados'] },
+  { id:'elite', name:'Elite', soles:120, benefits:['Todo lo incluido en Pro','Máxima prioridad en el directorio','Distintivo Elite destacado','Aparición preferente en portada','Atención prioritaria'] }
 ];
 const publicationFor = userId => db.creator_publication_subscriptions.find(item => Number(item.user_id) === Number(userId) && new Date(item.expires_at).getTime() > Date.now());
 async function publishedProfile(profile) { return Boolean(profile); }

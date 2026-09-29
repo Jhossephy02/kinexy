@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "seed": "node src/database/seed.js"
+    "seed": "node src/database/seed.js",
+    "grant:elite": "node scripts/grant-existing-creators-elite.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
