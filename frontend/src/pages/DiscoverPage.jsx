@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { profilesService } from '../api/client';
-import { useAuth } from '../context/AuthContext';
 import ProfileCard from '../components/ui/ProfileCard.jsx';
 import './Directory.css';
 
@@ -10,7 +9,6 @@ const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300
 
 export default function DiscoverPage({ city, setCity }) {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [profiles, setProfiles] = useState([]);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('Todas');
@@ -54,7 +52,7 @@ export default function DiscoverPage({ city, setCity }) {
   const toggleSaved = id => { const numeric = Number(id); const next = savedIds.includes(numeric) ? savedIds.filter(value => value !== numeric) : [...savedIds, numeric]; setSavedIds(next); localStorage.setItem('kinexy_saved', JSON.stringify(next)); };
 
   return <main className="discover-page directory-page" id="main-content">
-    <section className="listing-intro"><div><span className="eyebrow">DIRECTORIO KINEXY</span><h1>Anuncios en {city === 'Todas' ? 'todas las ciudades' : city}</h1><p>Encuentra perfiles por ubicación y revisa gratuitamente sus fotos, descripción y formas de contacto durante la beta. Los tokens se prueban únicamente en los chats.</p></div><Link className="listing-create" to={user?.role === 'creator' ? '/advertiser?onboarding=profile' : user ? '/profile?activate=creator' : '/register/creator'}>Publicar mi anuncio →</Link></section>
+    <section className="listing-intro"><div><span className="eyebrow">DIRECTORIO KINEXY</span><h1>Anuncios en {city === 'Todas' ? 'todas las ciudades' : city}</h1><p>Encuentra perfiles por ubicación y revisa gratuitamente sus fotos, descripción y formas de contacto durante la beta. Los tokens se prueban únicamente en los chats.</p></div></section>
     <nav className="listing-shortcuts" aria-label="Accesos rápidos">
       <button className={quick === 'active' ? 'selected' : ''} onClick={() => setQuick(quick === 'active' ? 'all' : 'active')}><b>●</b><span>En línea ahora</span><small>{profiles.filter(p => p.online).length}</small></button>
       <button onClick={() => document.querySelector('.listing-filters label:nth-child(2) select')?.focus()}><b>◎</b><span>Cerca de mí</span><small>Elige tu zona</small></button>
