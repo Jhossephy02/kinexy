@@ -5,6 +5,17 @@ import PostImage from './PostImage.jsx';
 import './CreatorWall.css';
 
 const photoUrl = value => /^(\/|https?:|data:)/.test(value || '');
+function openWhatsAppApp(event, url) {
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (!isMobile) return;
+  const phone = String(url || '').match(/wa\.me\/(\d+)/)?.[1];
+  if (!phone) return;
+  event.preventDefault();
+  window.location.href = `whatsapp://send?phone=${phone}`;
+  window.setTimeout(() => {
+    if (document.visibilityState === 'visible') window.location.href = url;
+  }, 900);
+}
 
 export default function CreatorWall({ profile, posts = [], isAuthenticated, onUnlock, unlocking, engagement, onLike }) {
   const photos = [...new Set([profile.photo, ...(Array.isArray(profile.photos) ? profile.photos : [])].filter(photoUrl))];
@@ -86,7 +97,7 @@ export default function CreatorWall({ profile, posts = [], isAuthenticated, onUn
     {(profile.owner_id || hasContact) && <div className="detail-access">
       {profile.owner_id && <section className="detail-booking"><span>CONTACTO SEGURO</span><h2>Solicitar disponibilidad</h2><p>Consulta horario, tarifa y disponibilidad en un chat privado. El primer mensaje requiere un aporte único de 10 tokens al creador.</p>{isAuthenticated ? <Link to={`/messages?partner_id=${profile.owner_id}`}>Solicitar servicio · abrir chat →</Link> : <Link to="/login">Inicia sesión para solicitar →</Link>}</section>}
       {hasContact && <section className="detail-contact"><h2>Contacto directo</h2><p>Accede a {profile.contact_whatsapp_enabled && 'WhatsApp'}{profile.contact_whatsapp_enabled && profile.contact_telegram_enabled && ' y '}{profile.contact_telegram_enabled && 'Telegram'} gratuitamente durante la beta.</p>
-        {contact?.unlocked ? <div className="detail-contact-links">{contact.links?.whatsapp && <a href={contact.links.whatsapp} target="_blank" rel="noopener noreferrer">Abrir WhatsApp ↗</a>}{contact.links?.telegram && <a href={contact.links.telegram} target="_blank" rel="noopener noreferrer">Abrir Telegram ↗</a>}</div> : isAuthenticated ? <button onClick={unlockContact} disabled={pending}>{pending ? 'Cargando…' : 'Mostrar contacto gratuito'}</button> : <Link to="/login">Inicia sesión para ver el contacto gratuito</Link>}
+        {contact?.unlocked ? <div className="detail-contact-links">{contact.links?.whatsapp && <a href={contact.links.whatsapp} onClick={event => openWhatsAppApp(event, contact.links.whatsapp)} target="_blank" rel="noopener noreferrer">Abrir WhatsApp ↗</a>}{contact.links?.telegram && <a href={contact.links.telegram} target="_blank" rel="noopener noreferrer">Abrir Telegram ↗</a>}</div> : isAuthenticated ? <button onClick={unlockContact} disabled={pending}>{pending ? 'Cargando…' : 'Mostrar contacto gratuito'}</button> : <Link to="/login">Inicia sesión para ver el contacto gratuito</Link>}
         {contactError && <p role="alert">{contactError}</p>}
       </section>}
     </div>}
