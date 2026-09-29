@@ -46,6 +46,9 @@ const db = database;
 const production = config.NODE_ENV === 'production';
 const demoOnly = (_req, res, next) => production ? res.status(404).json({ error: 'Ruta no disponible' }) : next();
 const requestBuckets = new Map();
+const loginFailures = new Map();
+const LOGIN_MAX_FAILURES = 5;
+const LOGIN_LOCK_MS = 15 * 60 * 1000;
 const typingStatus = new Map();
 const realtimeClients = new Map();
 const onlineUsers = new Map();
@@ -154,6 +157,11 @@ function contactAccess(profile, userId, unlockedFromDb = false) { const unlocked
 const tokenFor = (user) => jwt.sign({ id: user.id, role: user.role }, config.JWT_SECRET, { expiresIn: config.JWT_EXPIRES_IN });
 async function findUser(email) { const normalized = String(email || '').trim().toLowerCase(); return db.mode === 'postgres' ? db.findUser(normalized) : db.users.find((user) => String(user.email || '').trim().toLowerCase() === normalized); }
 async function getUser(id) { return db.mode === 'postgres' ? db.getUser(id) : db.users.find((user) => Number(user.id) === Number(id)); }
+const loginKey = req => `${req.ip}:${String(req.body?.email || '').trim().toLowerCase()}`;
+function loginGuard(req, res, next) { const attempt = loginFailures.get(loginKey(req)); if (attempt?.locked_until && attempt.locked_until > Date.now()) return res.status(429).json({ error: 'Por seguridad, espera 15 minutos antes de volver a intentarlo.' }); if (attempt?.locked_until) loginFailures.delete(loginKey(req)); next(); }
+function recordLoginFailure(req) { const key = loginKey(req); const prior = loginFailures.get(key) || { count: 0 }; const count = prior.count + 1; loginFailures.set(key, { count, locked_until: count >= LOGIN_MAX_FAILURES ? Date.now() + LOGIN_LOCK_MS : 0 }); }
+function clearLoginFailures(req) { loginFailures.delete(loginKey(req)); }
+async function migrateLegacyPassword(user, password) { const hash = await bcrypt.hash(password, 12); if (db.mode === 'postgres') await db.pool.query('UPDATE users SET password=$1 WHERE id=$2', [hash, user.id]); else { user.password = hash; await db.save(); } user.password = hash; }
 const isProtectedOwner = value => String(typeof value === 'object' ? value?.email : value || '').trim().toLowerCase() === config.OWNER_SUPERADMIN_EMAIL;
 async function ensureOwnerRole(user) {
   if (!user || !isProtectedOwner(user) || user.role === 'superadmin') return user;
@@ -222,7 +230,7 @@ function creatorSnapshot(creatorId) {
   return { posts, sales, audience, moderators, live, analytics, stats: { ...totals, posts: posts.length, published: posts.filter(item => item.status === 'published').length, available_tokens: Math.round(totals.revenue_tokens * .8), pending_tokens: Math.round(totals.revenue_tokens * .2) } };
 }
 
-app.post('/api/auth/login', throttle(10, 60000), credentials, async (req, res) => { let user = await findUser(req.body?.email); if (!user || !(user.password.startsWith('$2') ? await bcrypt.compare(req.body.password, user.password) : user.password === req.body.password)) return res.status(401).json({ error: 'Credenciales inválidas' }); user = await ensureOwnerRole(user); res.json({ token: tokenFor(user), user: safeUser(user) }); });
+app.post('/api/auth/login', throttle(10, 60000), credentials, loginGuard, async (req, res) => { let user = await findUser(req.body?.email); const storedPassword = String(user?.password || ''); const isBcrypt = storedPassword.startsWith('$2'); const valid = user && (isBcrypt ? await bcrypt.compare(req.body.password, storedPassword) : Buffer.byteLength(req.body.password) === Buffer.byteLength(storedPassword) && require('crypto').timingSafeEqual(Buffer.from(req.body.password), Buffer.from(storedPassword))); if (!valid) { recordLoginFailure(req); return res.status(401).json({ error: 'Credenciales inválidas' }); } if (!isBcrypt) await migrateLegacyPassword(user, req.body.password); clearLoginFailures(req); user = await ensureOwnerRole(user); res.json({ token: tokenFor(user), user: safeUser(user) }); });
 app.post('/api/auth/register', throttle(5, 60000), credentials, async (req, res) => { const { name, email, password, date_of_birth } = req.body || {}; if (isProtectedOwner(email)) return res.status(403).json({ error: 'La cuenta propietaria debe ingresar con Google o con la credencial configurada en el servidor.' }); if (await findUser(email)) return res.status(409).json({ error: 'El usuario ya está registrado' }); const publicRole = process.env.CREATOR_ACTIVATION_FREE !== 'false' && req.body.role === 'creator' ? 'creator' : 'client'; const adultConfirmedAt = new Date().toISOString(); const user = db.mode === 'postgres' ? await db.createUser({ name, email, password: await bcrypt.hash(password, 10), role: publicRole, date_of_birth }) : { id: db.nextId(db.users), name: name.trim(), email, password: await bcrypt.hash(password, 10), role: publicRole, date_of_birth, adult_confirmed_at: adultConfirmedAt, created_at: adultConfirmedAt }; if (db.mode !== 'postgres') { db.users.push(user); db.save(); } res.status(201).json({ token: tokenFor(user), user: safeUser(user) }); });
 app.post('/api/auth/google', async (req, res) => {
   if (!googleClient) return res.status(503).json({ error: 'El acceso con Google aún no está configurado.' });
