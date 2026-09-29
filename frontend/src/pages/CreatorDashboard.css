@@ -37,3 +37,5 @@
 
 /* Readability polish */
 .studio-nav nav button{font-size:12px}.studio-brand strong{font-size:15px}.studio-brand small{font-size:10px}.studio-welcome p,.moderator-hero p{font-size:12px}.studio-metrics article>span,.composer-fields label,.profile-studio-form label,.live-control label{font-size:11px}.analytics-card h3,.recent-content h3,.post-composer h2,.post-library h2,.sales-panel h2,.live-control h2,.profile-studio-form h2,.profile-list-panel h2{font-size:15px}.analytics-card header p,.recent-content header p,.post-composer header p,.post-library header p,.sales-panel header p,.live-control header p,.profile-studio-form header p{font-size:10px}.composer-fields input,.composer-fields select,.composer-fields textarea,.post-row select,.live-control input,.live-control select,.profile-studio-form input,.profile-studio-form select,.profile-studio-form textarea{font-size:12px}
+.studio-brand>img{display:block;width:39px;height:39px;object-fit:contain;filter:drop-shadow(0 10px 18px #ec6d8b38);animation:brand-float 5s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.studio-brand>img{animation:none}}

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import AppIcon from '../ui/AppIcon.jsx';
 import { walletService } from '../../api/client';
+import kinexyIsotype from '../../assets/kinexy-isotype.png';
 
 export default function Header({ onNavigate, city, onCityChange, user, onLogout }) {
   const [expanded, setExpanded] = useState(false);
@@ -26,7 +27,7 @@ export default function Header({ onNavigate, city, onCityChange, user, onLogout 
   const hasTokens = Number(tokenBalance) > 0;
 
   return <header className="site-header refined-header"><a className="skip-link" href="#main-content">Saltar al contenido</a>
-    <button className="brand" onClick={() => go('/')} aria-label="Kinexy, inicio"><span className="brand-mark">k</span>kinexy<span className="brand-dot">.</span></button>
+    <button className="brand" onClick={() => go('/')} aria-label="Kinexy, inicio"><img className="brand-mark" src={kinexyIsotype} alt=""/>kinexy<span className="brand-dot">.</span></button>
     <span className="header-divider"/><span className="header-caption">Anuncios y perfiles por ciudad</span>
     <button className="menu-toggle icon-button" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} aria-controls="main-navigation"><AppIcon name={expanded ? 'close' : 'menu'}/><span>{expanded ? 'Cerrar' : 'Menú'}</span></button>
     <nav id="main-navigation" className={`desktop-nav ${expanded ? 'nav-open' : ''}`} aria-label="Navegación principal">

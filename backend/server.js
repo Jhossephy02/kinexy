@@ -104,14 +104,15 @@ const PUBLICATION_PLANS = [
 ];
 const publicationFor = userId => db.creator_publication_subscriptions.find(item => Number(item.user_id) === Number(userId) && new Date(item.expires_at).getTime() > Date.now());
 async function publishedProfile(profile) { return Boolean(profile); }
-async function activateCreatorPlan(userId, planId, paymentId = null) {
+async function activateCreatorPlan(userId, planId, paymentId = null, durationDays = 7) {
   const startsAt = new Date().toISOString();
+  const days = Math.max(1, Math.min(3650, Number.parseInt(durationDays, 10) || 7));
   if (db.mode === 'postgres') {
-    const result = await db.pool.query("INSERT INTO creator_publication_subscriptions (user_id,plan,starts_at,expires_at,payment_id) VALUES ($1,$2,NOW(),NOW()+INTERVAL '7 days',$3) ON CONFLICT (user_id) DO UPDATE SET plan=$2,starts_at=NOW(),expires_at=GREATEST(creator_publication_subscriptions.expires_at,NOW())+INTERVAL '7 days',payment_id=$3 RETURNING *", [userId, planId, paymentId]);
+    const result = await db.pool.query("INSERT INTO creator_publication_subscriptions (user_id,plan,starts_at,expires_at,payment_id) VALUES ($1,$2,NOW(),NOW()+($4 * INTERVAL '1 day'),$3) ON CONFLICT (user_id) DO UPDATE SET plan=$2,starts_at=NOW(),expires_at=GREATEST(creator_publication_subscriptions.expires_at,NOW())+($4 * INTERVAL '1 day'),payment_id=$3 RETURNING *", [userId, planId, paymentId, days]);
     return result.rows[0];
   }
   const prior = db.creator_publication_subscriptions.find(item => Number(item.user_id) === Number(userId));
-  const expiresAt = new Date(Math.max(Date.now(), new Date(prior?.expires_at || 0).getTime()) + 7 * 86400000).toISOString();
+  const expiresAt = new Date(Math.max(Date.now(), new Date(prior?.expires_at || 0).getTime()) + days * 86400000).toISOString();
   if (prior) Object.assign(prior, { plan: planId, starts_at: startsAt, expires_at: expiresAt, payment_id: paymentId });
   else db.creator_publication_subscriptions.push({ user_id:userId, plan:planId, starts_at:startsAt, expires_at:expiresAt, payment_id:paymentId });
   await db.save();
@@ -393,8 +394,12 @@ app.post('/api/admin/creators/:id/grant-free-plan', auth, role('superadmin'), as
   const target = await getUser(req.params.id);
   if (!target) return res.status(404).json({ error: 'Cuenta no encontrada' });
   if (target.role !== 'creator') return res.status(400).json({ error: 'Solo puedes otorgar este beneficio a cuentas de creador.' });
-  const subscription = await grantFreeCreatorWeek(target.id);
-  notify(target.id, 'creator_plan_granted', 'Semana gratuita otorgada', 'Un superadministrador activó una semana adicional de tu plan de publicación.');
+  const plan = PUBLICATION_PLANS.find(item => item.id === req.body?.plan);
+  const days = Number.parseInt(req.body?.days, 10);
+  if (!plan) return res.status(400).json({ error: 'Selecciona un plan válido.' });
+  if (!Number.isInteger(days) || days < 1 || days > 3650) return res.status(400).json({ error: 'Indica una duración entre 1 y 3650 días.' });
+  const subscription = await activateCreatorPlan(target.id, plan.id, null, days);
+  notify(target.id, 'creator_plan_granted', 'Plan gratuito otorgado', `Un superadministrador activó el plan ${plan.name} por ${days} día(s).`);
   await db.save();
   res.json({ subscription, user: safeUser(target) });
 });
