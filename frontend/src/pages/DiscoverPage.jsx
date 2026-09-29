@@ -42,7 +42,7 @@ export default function DiscoverPage({ city, setCity }) {
   const categories = useMemo(() => [...new Set(profiles.map(p => p.category).filter(Boolean))].sort(), [profiles]);
   const visible = useMemo(() => profiles.filter(p =>
     (city === 'Todas' || p.city === city) && (area === 'Todas' || p.area === area) &&
-    (quick !== 'active' || p.active !== false) &&
+    (quick !== 'active' || p.online) &&
     (quick !== 'new' || Number(p.id) >= Math.max(...profiles.map(item => Number(item.id) || 0), 0) - 3) &&
     (quick !== 'saved' || savedIds.includes(Number(p.id))) &&
     (category === 'Todas' || p.category === category) &&
@@ -56,7 +56,7 @@ export default function DiscoverPage({ city, setCity }) {
   return <main className="discover-page directory-page" id="main-content">
     <section className="listing-intro"><div><span className="eyebrow">DIRECTORIO KINEXY</span><h1>Anuncios en {city === 'Todas' ? 'todas las ciudades' : city}</h1><p>Encuentra perfiles por ubicación y revisa gratuitamente sus fotos, descripción y formas de contacto durante la beta. Los tokens se prueban únicamente en los chats.</p></div><Link className="listing-create" to={user?.role === 'creator' ? '/advertiser?onboarding=profile' : user ? '/profile?activate=creator' : '/register/creator'}>Publicar mi anuncio →</Link></section>
     <nav className="listing-shortcuts" aria-label="Accesos rápidos">
-      <button className={quick === 'active' ? 'selected' : ''} onClick={() => setQuick(quick === 'active' ? 'all' : 'active')}><b>●</b><span>Activos ahora</span><small>{profiles.filter(p => p.active !== false).length}</small></button>
+      <button className={quick === 'active' ? 'selected' : ''} onClick={() => setQuick(quick === 'active' ? 'all' : 'active')}><b>●</b><span>En línea ahora</span><small>{profiles.filter(p => p.online).length}</small></button>
       <button onClick={() => document.querySelector('.listing-filters label:nth-child(2) select')?.focus()}><b>◎</b><span>Cerca de mí</span><small>Elige tu zona</small></button>
       <button className={quick === 'new' ? 'selected' : ''} onClick={() => { setQuick(quick === 'new' ? 'all' : 'new'); setSort('recent'); }}><b>✦</b><span>Perfiles nuevos</span><small>Últimos anuncios</small></button>
       <button className={quick === 'saved' ? 'selected' : ''} onClick={() => setQuick(quick === 'saved' ? 'all' : 'saved')}><b>♥</b><span>Mis guardados</span><small>{savedIds.length} perfiles</small></button>

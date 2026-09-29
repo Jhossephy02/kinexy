@@ -8,6 +8,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 're
 import Header from './components/layout/Header.jsx';
 import Footer from './components/layout/Footer.jsx';
 import AgeGate from './components/layout/AgeGate.jsx';
+import PresenceHeartbeat from './components/layout/PresenceHeartbeat.jsx';
 import ProfileCard from './components/ui/ProfileCard.jsx';
 import Modal from './components/ui/Modal.jsx';
 import SearchBar from './components/ui/SearchBar.jsx';
@@ -23,7 +24,7 @@ import { useAuth } from './context/AuthContext';
 
 const categories = ['Todos', 'Premium', 'A Domicilio', '18 años', 'Económicas', 'Maduras'];
 function ScrollToTop() { const { pathname } = useLocation(); useLayoutEffect(() => { window.scrollTo(0, 0); }, [pathname]); return null; }
-function Shell({ children, city = 'Pucallpa', setCity = () => {} }) { const navigate = useNavigate(); const { user, logout } = useAuth(); return <><Header onNavigate={navigate} city={city} onCityChange={setCity} user={user} onLogout={logout} />{children}<Footer onNavigate={navigate} /></>; }
+function Shell({ children, city = 'Pucallpa', setCity = () => {} }) { const navigate = useNavigate(); const { user, logout } = useAuth(); return <><PresenceHeartbeat/><Header onNavigate={navigate} city={city} onCityChange={setCity} user={user} onLogout={logout} />{children}<Footer onNavigate={navigate} /></>; }
 function HomePage() { const [city, setCity] = useState('Pucallpa'); return <Shell city={city} setCity={setCity}><DiscoverPage city={city} setCity={setCity} /></Shell>; }
 function CityPage() { const { city: slug } = useParams(); const cities = { pucallpa: 'Pucallpa', iquitos: 'Iquitos', tarapoto: 'Tarapoto', 'tingo-maria': 'Tingo María', yurimaguas: 'Yurimaguas' }; const city = cities[String(slug || '').toLowerCase()] || 'Todas'; const [selected, setSelected] = useState(city); return <Shell city={selected} setCity={setSelected}><DiscoverPage city={selected} setCity={setSelected} /></Shell>; }
 function SectionPage({ title, text }) { const navigate = useNavigate(); return <Shell><main className="page section-page"><p className="eyebrow">Kinexy</p><h1>{title}</h1><p>{text}</p><button className="primary-button" onClick={() => navigate('/')}>Volver al inicio</button></main></Shell>; }

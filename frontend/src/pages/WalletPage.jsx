@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import api, { walletService, paymentsService, profilesService, tipsService, withdrawalsService } from '../api/client';
 import AppIcon from '../components/ui/AppIcon.jsx';
 import './WalletPage.css';
+import './WalletWorkspace.css';
 
 export default function WalletPage() {
   const { user, isAuthenticated } = useAuth();
@@ -68,7 +69,7 @@ export default function WalletPage() {
         <div>
           <span className="eyebrow"><AppIcon name="wallet"/>BILLETERA KINEXY</span>
           <h1>Tus tokens,<br/><em>siempre visibles.</em></h1>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+          <div className="wallet-hero-actions">
             <a href="#recargar" className="primary-button" style={{ textDecoration: 'none' }}>Recargar mi cuenta</a>
             <a className="secondary-button" href="#donar" style={{ textDecoration: 'none' }}>Donar tokens</a>
           </div>
@@ -101,7 +102,7 @@ export default function WalletPage() {
         </section>
         <section className="wallet-recharge" id="donar"><header><span className="eyebrow">DONAR</span><h2>Apoya a una creadora<span>.</span></h2><p>La donación llega al instante y queda registrada en ambas billeteras.</p></header><label>Creadora<select value={tipTo} onChange={event => setTipTo(event.target.value)}><option value="">Selecciona una creadora</option>{profiles.map(profile => <option key={profile.id} value={profile.owner_id}>{profile.name}</option>)}</select></label><label>Tokens a donar<input type="text" inputMode="numeric" pattern="[0-9]*" min="1" value={tipAmount} onChange={event => setTipAmount(event.target.value)} placeholder="Ej. 10"/></label><button className="primary-button" disabled={busy || !tipTo || Number(tipAmount) < 1} onClick={donate}>Donar tokens</button></section>
         {isCreator && <section className="wallet-recharge"><header><span className="eyebrow">RETIRAR</span><h2>Retira tus ganancias<span>.</span></h2><p>Valor de retiro: S/ 0.30 por token. La solicitud reserva tokens hasta que un moderador valide el pago manual.</p></header><label>Tokens a retirar<input type="text" inputMode="numeric" pattern="[0-9]*" min="1" value={withdrawAmount} onChange={event => setWithdrawAmount(event.target.value)} placeholder="Ej. 100"/></label>{Number(withdrawAmount) > 0 && <p><strong>Recibirás S/ {(Number(withdrawAmount) * 0.3).toFixed(2)}</strong></p>}<label>Método<select value={withdrawMethod} onChange={event => setWithdrawMethod(event.target.value)}><option value="yape">Yape</option><option value="bank">Cuenta bancaria</option></select></label><label>{withdrawMethod === 'yape' ? 'Número Yape' : 'Cuenta bancaria o CCI'}<input value={destination} onChange={event => setDestination(event.target.value)} placeholder="Destino del pago"/></label><button className="primary-button" disabled={busy || Number(withdrawAmount) < 1 || destination.trim().length < 6} onClick={withdraw}>Solicitar retiro</button>{withdrawals.length > 0 && <div className="yape-status"><h3>Mis retiros</h3>{withdrawals.map(item => <p key={item.id}>{item.amount_tokens} tokens · S/ {(Number(item.amount_tokens) * 0.3).toFixed(2)} · {item.status}{item.review_note ? ` · ${item.review_note}` : ''}</p>)}</div>}</section>}
-        <aside className="wallet-history" style={{ width: '100%', maxWidth: '800px', margin: '0 auto' }}>
+        <aside className="wallet-history">
           <header>
             <span><AppIcon name="history"/></span>
             <div>
@@ -111,17 +112,17 @@ export default function WalletPage() {
           </header>
           <div className="wallet-filters">{[['all','Todos'],['in','Ingresos'],['out','Gastos'],['tips','Donaciones'],['withdrawals','Retiros']].map(([key,label]) => <button key={key} className={filter === key ? 'is-selected' : ''} onClick={() => setFilter(key)}>{label}</button>)}</div>{filteredTransactions.length > 0 ? (
             filteredTransactions.map((transaction) => (
-              <article key={transaction.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid var(--border)', gap: '12px' }}>
-                <span style={{ fontSize: '20px', flexShrink: 0 }}>
+              <article key={transaction.id}>
+                <span>
                   {transaction.amount > 0 ? '⬆️' : '⬇️'}
                 </span>
-                <div style={{ flex: 1 }}>
-                  <strong style={{ display: 'block', fontSize: '0.9rem' }}>{movementName(transaction)}</strong>
-                  <time style={{ color: 'var(--muted)', fontSize: '0.8rem' }} dateTime={transaction.created_at}>
+                <div>
+                  <strong>{movementName(transaction)}</strong>
+                  <time dateTime={transaction.created_at}>
                     {new Date(transaction.created_at).toLocaleString('es-PE')}
                   </time>
                 </div>
-                <b style={{ color: transaction.amount > 0 ? '#4ade80' : '#f2677f', fontSize: '1rem', fontWeight: '700' }}>
+                <b className={transaction.amount > 0 ? 'credit-text' : ''}>
                   {transaction.amount > 0 ? '+' : ''}{transaction.amount}
                 </b>
               </article>
