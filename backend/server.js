@@ -117,6 +117,15 @@ async function activateCreatorPlan(userId, planId, paymentId = null) {
   await db.save();
   return prior || db.creator_publication_subscriptions.at(-1);
 }
+// A courtesy week must never replace a plan the creator has already paid for.
+// If the current plan is active, it simply extends that same plan for one week.
+async function grantFreeCreatorWeek(userId) {
+  const current = db.mode === 'postgres'
+    ? await db.getCreatorPublication(userId)
+    : db.creator_publication_subscriptions.find(item => Number(item.user_id) === Number(userId));
+  const currentIsActive = current && new Date(current.expires_at).getTime() > Date.now();
+  return activateCreatorPlan(userId, currentIsActive ? current.plan : 'free');
+}
 const MESSAGE_UNLOCK_COST = 10;
 const MEMBERSHIP_TIERS = { members: 1, members_basic: 1, members_medium: 2, members_high: 3 };
 const MEMBERSHIP_COSTS = { 1: 20, 2: 40, 3: 70 };
@@ -380,6 +389,15 @@ app.get('/api/users', auth, role('admin', 'superadmin'), permission('view_accoun
 app.post('/api/users', auth, role('superadmin'), managedAccountInput, async (req, res) => { if (await findUser(req.body.email)) return res.status(409).json({ error: 'El usuario ya está registrado' }); const input = { ...req.body, password: await bcrypt.hash(req.body.password, 10) }; const user = db.mode === 'postgres' ? await db.createManagedUser(input) : { ...input, id: db.nextId(db.users), created_at: new Date().toISOString() }; if (db.mode !== 'postgres') { db.users.push(user); db.save(); } res.status(201).json({ user: safeUser(user) }); });
 app.patch('/api/users/:id/role', auth, role('superadmin'), async (req, res) => { const nextRole = req.body?.role; if (!ROLES.has(nextRole)) return res.status(400).json({ error: 'Rol inválido' }); const target = await getUser(req.params.id); if (!target) return res.status(404).json({ error: 'Cuenta no encontrada' }); if (Number(target.id) === Number(req.auth.id) && nextRole !== target.role) return res.status(409).json({ error: 'No puedes cambiar el rol de tu propia sesión.' }); if (isProtectedOwner(target) && nextRole !== 'superadmin') return res.status(409).json({ error: 'La cuenta propietaria es un superadministrador protegido.' }); if (target.role === 'superadmin' && nextRole !== 'superadmin' && await countRole('superadmin') <= 1) return res.status(409).json({ error: 'Debe existir al menos un superadministrador' }); const user = db.mode === 'postgres' ? await db.updateUserRole(req.params.id, nextRole) : db.users.find(item => Number(item.id) === Number(req.params.id)); if (db.mode !== 'postgres') { user.role = nextRole; db.save(); } res.json({ user: safeUser(user) }); });
 app.delete('/api/users/:id', auth, role('superadmin'), async (req, res) => { if (Number(req.params.id) === Number(req.auth.id)) return res.status(409).json({ error: 'No puedes eliminar tu propia cuenta' }); const target = await getUser(req.params.id); if (!target) return res.status(404).json({ error: 'Cuenta no encontrada' }); if (isProtectedOwner(target)) return res.status(409).json({ error: 'La cuenta propietaria no se puede eliminar.' }); if (target.role === 'superadmin' && await countRole('superadmin') <= 1) return res.status(409).json({ error: 'Debe existir al menos un superadministrador' }); if (db.mode === 'postgres') await db.deleteUser(req.params.id); else { db.users.splice(db.users.findIndex(item => Number(item.id) === Number(req.params.id)), 1); db.save(); } res.status(204).end(); });
+app.post('/api/admin/creators/:id/grant-free-plan', auth, role('superadmin'), async (req, res) => {
+  const target = await getUser(req.params.id);
+  if (!target) return res.status(404).json({ error: 'Cuenta no encontrada' });
+  if (target.role !== 'creator') return res.status(400).json({ error: 'Solo puedes otorgar este beneficio a cuentas de creador.' });
+  const subscription = await grantFreeCreatorWeek(target.id);
+  notify(target.id, 'creator_plan_granted', 'Semana gratuita otorgada', 'Un superadministrador activó una semana adicional de tu plan de publicación.');
+  await db.save();
+  res.json({ subscription, user: safeUser(target) });
+});
 app.post('/api/admin/wallet/credit', auth, role('superadmin'), async (req, res) => {
   const userIds = [...new Set(Array.isArray(req.body?.user_ids) ? req.body.user_ids.map(Number) : [])].filter(Number.isInteger);
   const amount = Number(req.body?.amount);

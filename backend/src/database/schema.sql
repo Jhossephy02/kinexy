@@ -105,7 +105,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS manual_payments_provider_code_idx ON manual_pa
 
 CREATE TABLE IF NOT EXISTS creator_publication_subscriptions (
   user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  plan TEXT NOT NULL CHECK (plan IN ('basico','destacado','premium')),
+  plan TEXT NOT NULL CHECK (plan IN ('free','plus','pro','elite')),
   starts_at TIMESTAMPTZ NOT NULL,
   expires_at TIMESTAMPTZ NOT NULL,
   payment_id BIGINT REFERENCES manual_payments(id)
