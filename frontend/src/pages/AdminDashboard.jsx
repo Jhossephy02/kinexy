@@ -61,6 +61,7 @@ const roleConfig = {
 
 const statusLabel = { open: 'Abierto', reviewing: 'En revisión', resolved: 'Resuelto', dismissed: 'Descartado' };
 const priorityLabel = { low: 'Baja', medium: 'Media', high: 'Alta', critical: 'Crítica' };
+const mobileTabLabel = { overview: 'Inicio', accounts: 'Usuarios', queue: 'Revisar', payments: 'Pagos', permissions: 'Accesos', reports: 'Reportes', metrics: 'Métricas', billing: 'Retiros', support: 'Soporte', risk: 'Riesgo', system: 'Servidor', audit: 'Auditoría', strikes: 'Sanciones' };
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -89,10 +90,7 @@ export default function AdminDashboard() {
 
   // Strike state (Moderator)
   const [strikeForm, setStrikeForm] = useState({ userEmail: '', reason: 'Infracción de normas', duration: '24h' });
-  const [strikesList, setStrikesList] = useState([
-    { id: 1, user: 'usuario_demo@kinexy.pe', reason: 'Lenguaje inapropiado', duration: '24h', date: '2026-09-15 11:20' },
-    { id: 2, user: 'creador_test@kinexy.pe', reason: 'Foto de perfil no válida', duration: '48h', date: '2026-09-14 16:45' }
-  ]);
+  const [strikesList, setStrikesList] = useState([]);
 
   // System parameters (Superadmin)
   const [sysConfig, setSysConfig] = useState({
@@ -246,7 +244,7 @@ export default function AdminDashboard() {
               className="nav-item"
             >
               <Icon name={icon} />
-              <span className="nav-label">{label}</span>
+              <span className="nav-label"><span className="nav-label-desktop">{label}</span><span className="nav-label-mobile">{mobileTabLabel[id] || label}</span></span>
               {id === 'reports' && overview?.open_reports > 0 && <span className="nav-badge alert">{overview.open_reports}</span>}
               {id === 'queue' && queue?.length > 0 && <span className="nav-badge info">{queue.length}</span>}
             </button>
@@ -454,7 +452,7 @@ export default function AdminDashboard() {
                   <div className="strikes-history-card">
                     <h3>Historial de Advertencias Recientes</h3>
                     <div className="strikes-list">
-                      {strikesList.map((item) => (
+                      {strikesList.length === 0 ? <Empty text="Aún no se han registrado sanciones." /> : strikesList.map((item) => (
                         <div key={item.id} className="strike-item">
                           <div>
                             <strong>{item.user}</strong>
@@ -496,8 +494,8 @@ export default function AdminDashboard() {
             )}
 
 
-            {tab === 'billing' && <BillingOperations sysConfig={sysConfig} updateSystem={updateSystem} setNotice={setNotice} />}
-            {tab === 'support' && <SupportOperations setNotice={setNotice} />}
+            {tab === 'billing' && <BillingOperations overview={overview} queue={queue} sysConfig={sysConfig} updateSystem={updateSystem} />}
+            {tab === 'support' && <SupportOperations />}
             {tab === 'risk' && <RiskOperations sysConfig={sysConfig} updateSystem={updateSystem} />}
 
             {tab === 'permissions' && <PermissionsMatrix matrix={permissionMatrix} setMatrix={setPermissionMatrix} setNotice={setNotice} />}
@@ -1444,15 +1442,28 @@ function SystemToggle({ label, detail, active, onChange }) {
   return <article className="param-card"><div><strong>{label}</strong><p>{detail}</p></div><button type="button" className={`toggle-switch ${active ? 'is-on' : ''}`} aria-pressed={active} onClick={onChange}><i/><span>{active ? 'Activo' : 'Pausado'}</span></button></article>;
 }
 
-function BillingOperations({ sysConfig, updateSystem, setNotice }) {
-  const [period, setPeriod] = useState('Esta semana');
-  return <Panel title="Cobros, saldo y liquidaciones" caption="Supervisa los movimientos antes de habilitar pagos a creadores." icon="wallet"><div className="billing-summary"><article><span>Ventas conciliadas</span><strong>S/ 12,480</strong><small>{period} · actualización reciente</small></article><article><span>Retenido para revisión</span><strong>S/ 1,840</strong><small>{sysConfig.autoHoldPayouts ? 'Control preventivo activo' : 'Retención desactivada'}</small></article><article><span>Solicitudes de retiro</span><strong>8</strong><small>3 listas para revisión</small></article></div><div className="billing-toolbar"><label>Periodo<select value={period} onChange={event => setPeriod(event.target.value)}><option>Hoy</option><option>Esta semana</option><option>Este mes</option></select></label><button onClick={() => setNotice('Conciliación preparada para revisión manual.')}>Preparar conciliación</button><button className="ghost" onClick={() => updateSystem('autoHoldPayouts', !sysConfig.autoHoldPayouts, `Retención preventiva ${!sysConfig.autoHoldPayouts ? 'activada' : 'desactivada'}.`)}>{sysConfig.autoHoldPayouts ? 'Suspender retención' : 'Activar retención'}</button></div><section className="settlement-list"><header><strong>Próximas liquidaciones</strong><span>Revisión requerida</span></header>{[['Creador demo','1,120','Verificación de identidad pendiente'],['Perfil Norte','460','Documentación completa'],['Studio Lima','260','Revisión aleatoria']].map(([name, amount, state]) => <article key={name}><span className="settlement-avatar">{name[0]}</span><div><strong>{name}</strong><small>{state}</small></div><b>S/ {amount}</b><button onClick={() => setNotice(`Liquidación de ${name} marcada para revisión.`)}>Revisar</button></article>)}</section></Panel>;
+function BillingOperations({ overview, queue, sysConfig, updateSystem }) {
+  const pendingProfiles = queue?.length || overview?.pending_profiles || 0;
+  const openReports = overview?.open_reports || 0;
+  return <Panel title="Pagos y liquidaciones" caption="Revisa solicitudes reales antes de autorizar movimientos de saldo." icon="wallet">
+    <div className="billing-summary">
+      <article><span>Retiros pendientes</span><strong>0</strong><small>Sin solicitudes por revisar</small></article>
+      <article><span>Perfiles en validación</span><strong>{pendingProfiles}</strong><small>En cola de aprobación</small></article>
+      <article><span>Reportes abiertos</span><strong>{openReports}</strong><small>Casos que requieren atención</small></article>
+    </div>
+    <div className="billing-toolbar">
+      <div className="billing-status"><strong>{sysConfig.autoHoldPayouts ? 'Retención preventiva activa' : 'Retención preventiva desactivada'}</strong><small>Los retiros se mostrarán aquí cuando existan solicitudes reales.</small></div>
+      <button className="ghost" onClick={() => updateSystem('autoHoldPayouts', !sysConfig.autoHoldPayouts, `Retención preventiva ${!sysConfig.autoHoldPayouts ? 'activada' : 'desactivada'}.`)}>{sysConfig.autoHoldPayouts ? 'Pausar retención' : 'Activar retención'}</button>
+    </div>
+    <section className="settlement-list"><header><strong>Solicitudes de liquidación</strong><span>Datos en tiempo real</span></header><Empty text="No hay retiros ni liquidaciones pendientes." /></section>
+  </Panel>;
 }
 
-function SupportOperations({ setNotice }) {
-  const [filter, setFilter] = useState('Abiertos');
-  const tickets = [{ id:'SUP-1048', title:'Consulta sobre saldo de tokens', person:'Cliente demo', tone:'normal' },{ id:'SUP-1042', title:'Verificación de cuenta de creador', person:'Perfil Norte', tone:'priority' },{ id:'SUP-1039', title:'Reporte de conversación', person:'SofiNorte', tone:'risk' }];
-  return <Panel title="Soporte, solicitudes y seguimiento" caption="Ordena casos de clientes y creadores con una cola visible para el equipo." icon="message"><div className="support-toolbar"><div><strong>Casos priorizados</strong><small>Asigna, responde y escala sin perder contexto.</small></div><select value={filter} onChange={event => setFilter(event.target.value)}><option>Abiertos</option><option>Asignados</option><option>Resueltos</option></select></div><div className="support-list">{tickets.map(ticket => <article key={ticket.id} className={ticket.tone}><span>{ticket.id}</span><div><strong>{ticket.title}</strong><small>{ticket.person} · {filter}</small></div><button onClick={() => setNotice(`${ticket.id} se asignó a tu cola.`)}>Tomar caso</button></article>)}</div></Panel>;
+function SupportOperations() {
+  return <Panel title="Soporte y seguimiento" caption="Aquí aparecerán las solicitudes enviadas por clientes y creadores." icon="message">
+    <div className="support-toolbar"><div><strong>Bandeja de soporte</strong><small>Los casos reales se ordenarán por fecha y prioridad.</small></div></div>
+    <div className="support-list"><Empty text="No hay solicitudes abiertas en este momento." /></div>
+  </Panel>;
 }
 
 function RiskOperations({ sysConfig, updateSystem }) {
