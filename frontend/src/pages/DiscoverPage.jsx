@@ -52,7 +52,6 @@ export default function DiscoverPage({ city, setCity }) {
   const toggleSaved = id => { const numeric = Number(id); const next = savedIds.includes(numeric) ? savedIds.filter(value => value !== numeric) : [...savedIds, numeric]; setSavedIds(next); localStorage.setItem('kinexy_saved', JSON.stringify(next)); };
 
   return <main className="discover-page directory-page" id="main-content">
-    <section className="listing-intro"><div><span className="eyebrow">DIRECTORIO KINEXY</span><h1>Anuncios en {city === 'Todas' ? 'todas las ciudades' : city}</h1><p>Encuentra perfiles por ubicación y revisa gratuitamente sus fotos, descripción y formas de contacto durante la beta. Los tokens se prueban únicamente en los chats.</p></div></section>
     <nav className="listing-shortcuts" aria-label="Accesos rápidos">
       <button className={quick === 'active' ? 'selected' : ''} onClick={() => setQuick(quick === 'active' ? 'all' : 'active')}><b>●</b><span>En línea ahora</span><small>{profiles.filter(p => p.online).length}</small></button>
       <button onClick={() => document.querySelector('.listing-filters label:nth-child(2) select')?.focus()}><b>◎</b><span>Cerca de mí</span><small>Elige tu zona</small></button>
