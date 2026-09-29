@@ -30,7 +30,7 @@ export default function PublicationPlanPanel() {
   const activePlan = state?.plans.find(item => item.id === state?.subscription?.plan);
   return <section className="publication-plan-panel">
     <header className="publication-hero">
-      <div><span className="eyebrow">MEMBRESÍA DE CREADOR</span><h2>Haz visible tu espacio<span>.</span></h2><p>Elige un plan semanal para mantener tu perfil y tus publicaciones disponibles en Kinexy.</p></div>
+      <div><span className="eyebrow">MEMBRESÍA DE CREADOR</span><h2>Impulsa tu espacio<span>.</span></h2><p>Elige un plan semanal para acceder a prioridad y beneficios dentro de tu dashboard de creador.</p></div>
       <div className={`publication-state ${state?.active ? 'is-active' : ''}`}><AppIcon name={state?.active ? 'check' : 'history'}/><span>{state?.active ? 'Membresía activa' : 'Sin membresía activa'}</span><strong>{state?.active && state.subscription ? `Hasta ${new Date(state.subscription.expires_at).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' })}` : 'Elige tu plan'}</strong></div>
     </header>
 
