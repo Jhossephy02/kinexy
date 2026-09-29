@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import AppIcon from '../components/ui/AppIcon.jsx';
 
-export default function MessagesPage({ embedded = false }) {
+export default function MessagesPage({ embedded = false, onExit }) {
   const { user, isAuthenticated } = useAuth();
   const location = useLocation();
   const [conversations, setConversations] = useState([]);
@@ -148,8 +148,7 @@ export default function MessagesPage({ embedded = false }) {
     <Root className={`messages-page ${embedded ? 'messages-embedded' : ''}`} id={embedded ? undefined : 'main-content'} style={{ display: 'flex', height: embedded ? 'min(700px, calc(100dvh - 235px))' : 'calc(100dvh - 94px)', minHeight: embedded ? '520px' : 0, overflow: 'hidden', background: 'var(--black)', borderRadius: embedded ? '16px' : 0, border: embedded ? '1px solid var(--border)' : 0 }}>
       <aside className={`messages-sidebar ${activePartner ? 'mobile-hidden' : ''}`} style={{ width: '300px', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column' }}>
         <header style={{ padding: '20px', borderBottom: '1px solid var(--border)' }}>
-          <span className="eyebrow"><AppIcon name="message" /> MENSAJES</span>
-          <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Tus chats</h2>
+          <div className="messages-title-row"><div><span className="eyebrow"><AppIcon name="message" /> MENSAJES</span><h2 style={{ fontSize: '1.5rem', margin: 0 }}>Tus chats</h2></div>{embedded && <button className="messages-exit" onClick={onExit}><AppIcon name="arrow" style={{ transform: 'rotate(180deg)' }}/>Panel</button>}</div>
         </header>
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loadingConv ? <p style={{ padding: '20px', color: 'var(--muted)' }}>Cargando...</p> : conversations.length === 0 ? (
@@ -179,11 +178,12 @@ export default function MessagesPage({ embedded = false }) {
         {activePartner ? (
           <>
             <header style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center' }}>
-              <button className="mobile-only" onClick={() => setActivePartner(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text)', marginRight: '10px', fontSize: '1.5rem' }}>
+              <button className="mobile-only" onClick={() => setActivePartner(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text)', marginRight: '10px', fontSize: '1.5rem' }} aria-label="Volver a todos los chats">
                 <AppIcon name="arrow" style={{ transform: 'rotate(180deg)' }} />
               </button>
               <h2 style={{ fontSize: '1.2rem', margin: 0 }}>{activePartner.partner_name}</h2>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {embedded && <button className="messages-exit messages-exit-chat" onClick={onExit}><AppIcon name="arrow" style={{ transform: 'rotate(180deg)' }}/>Panel</button>}
                 <input aria-label="Tokens para el tip" type="text" inputMode="numeric" pattern="[0-9]*" min="1" max="10000" value={tipAmount} onChange={(event) => setTipAmount(event.target.value)} style={{ width: '62px', padding: '7px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--black)', color: 'var(--text)' }} />
                 <button onClick={sendTip} disabled={sendingTip} style={{ padding: '8px 11px', border: '1px solid #704053', borderRadius: '9px', background: '#2a1b24', color: '#ffd1df', fontWeight: '700', cursor: 'pointer' }}>{sendingTip ? '...' : 'Enviar tip'}</button>
               </div>
@@ -215,11 +215,17 @@ export default function MessagesPage({ embedded = false }) {
       </section>
       
       <style>{`
+        .messages-title-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+        .messages-exit { display:inline-flex; align-items:center; gap:6px; min-height:34px; padding:7px 9px; border:1px solid #664153; border-radius:9px; background:#271b24; color:#ffd4e1; font-size:11px; font-weight:800; cursor:pointer; }
+        .messages-exit .app-icon { width:14px; }
+        .messages-exit:hover { background:#412535; }
         @media (max-width: 760px) {
           .messages-sidebar.mobile-hidden { display: none !important; }
           .messages-chat.mobile-hidden { display: none !important; }
           .messages-sidebar { width: 100% !important; }
           .mobile-only { display: block !important; }
+          .messages-exit-chat { font-size:0; min-width:36px; padding:7px; justify-content:center; }
+          .messages-exit-chat .app-icon { width:16px; }
         }
         @media (min-width: 761px) {
           .mobile-only { display: none !important; }
