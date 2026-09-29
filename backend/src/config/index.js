@@ -17,6 +17,8 @@ module.exports = {
   OWNER_SUPERADMIN_EMAIL: (process.env.OWNER_SUPERADMIN_EMAIL || 'mjhossephy@gmail.com').trim().toLowerCase(),
   // La plataforma inicia con publicación gratuita; activar cobro requiere BETA_FREE_ACCESS=false.
   BETA_FREE_ACCESS: String(process.env.BETA_FREE_ACCESS || 'true').toLowerCase() === 'true',
+  // Control independiente: las membresías de publicación del creador no activan cobros para chats ni contactos.
+  CREATOR_MEMBERSHIPS_ENABLED: String(process.env.CREATOR_MEMBERSHIPS_ENABLED || 'true').toLowerCase() === 'true',
   PAYMENT_PROVIDER: process.env.PAYMENT_PROVIDER || '',
   PAYMENT_API_KEY: process.env.PAYMENT_API_KEY || '',
   PAYMENT_WEBHOOK_SECRET: process.env.PAYMENT_WEBHOOK_SECRET || '',

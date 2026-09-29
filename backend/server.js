@@ -93,9 +93,27 @@ const TOKEN_METHODS = new Set(['cards', 'yape', 'cash', 'bank', 'paypal', 'crypt
 const TOKEN_VALUE_PEN = 0.50;
 const WITHDRAWAL_VALUE_PEN = 0.30;
 const YAPE_PACKS = [{ tokens:40, soles:20 },{ tokens:80, soles:40 },{ tokens:180, soles:90 },{ tokens:460, soles:230 }];
-const PUBLICATION_PLANS = [{ id:'basico', name:'Básico', soles:80, benefits:['Anuncio publicado durante 7 días'] },{ id:'destacado', name:'Destacado', soles:120, benefits:['Anuncio publicado durante 7 días','Prioridad sobre anuncios básicos'] },{ id:'premium', name:'Premium', soles:200, benefits:['Anuncio publicado durante 7 días','Máxima prioridad en el listado'] }];
+const PUBLICATION_PLANS = [
+  { id:'free', name:'Gratis', soles:0, benefits:['Anuncio publicado durante 7 días','Perfil visible en el directorio'] },
+  { id:'plus', name:'Plus', soles:40, benefits:['Anuncio publicado durante 7 días','Prioridad en el directorio','Soporte prioritario'] },
+  { id:'pro', name:'Pro', soles:80, benefits:['Anuncio publicado durante 7 días','Mayor prioridad en el directorio','Soporte prioritario'] },
+  { id:'elite', name:'Elite', soles:120, benefits:['Anuncio publicado durante 7 días','Máxima prioridad en el directorio','Distintivo destacado'] }
+];
 const publicationFor = userId => db.creator_publication_subscriptions.find(item => Number(item.user_id) === Number(userId) && new Date(item.expires_at).getTime() > Date.now());
-async function publishedProfile(profile) { return profile && (config.BETA_FREE_ACCESS || !profile.owner_id || Boolean(db.mode === 'postgres' ? new Date((await db.getCreatorPublication(profile.owner_id))?.expires_at).getTime() > Date.now() : publicationFor(profile.owner_id))); }
+async function publishedProfile(profile) { return profile && (!config.CREATOR_MEMBERSHIPS_ENABLED || !profile.owner_id || Boolean(db.mode === 'postgres' ? new Date((await db.getCreatorPublication(profile.owner_id))?.expires_at).getTime() > Date.now() : publicationFor(profile.owner_id))); }
+async function activateCreatorPlan(userId, planId, paymentId = null) {
+  const startsAt = new Date().toISOString();
+  if (db.mode === 'postgres') {
+    const result = await db.pool.query("INSERT INTO creator_publication_subscriptions (user_id,plan,starts_at,expires_at,payment_id) VALUES ($1,$2,NOW(),NOW()+INTERVAL '7 days',$3) ON CONFLICT (user_id) DO UPDATE SET plan=$2,starts_at=NOW(),expires_at=GREATEST(creator_publication_subscriptions.expires_at,NOW())+INTERVAL '7 days',payment_id=$3 RETURNING *", [userId, planId, paymentId]);
+    return result.rows[0];
+  }
+  const prior = db.creator_publication_subscriptions.find(item => Number(item.user_id) === Number(userId));
+  const expiresAt = new Date(Math.max(Date.now(), new Date(prior?.expires_at || 0).getTime()) + 7 * 86400000).toISOString();
+  if (prior) Object.assign(prior, { plan: planId, starts_at: startsAt, expires_at: expiresAt, payment_id: paymentId });
+  else db.creator_publication_subscriptions.push({ user_id:userId, plan:planId, starts_at:startsAt, expires_at:expiresAt, payment_id:paymentId });
+  await db.save();
+  return prior || db.creator_publication_subscriptions.at(-1);
+}
 const MESSAGE_UNLOCK_COST = 10;
 const MEMBERSHIP_TIERS = { members: 1, members_basic: 1, members_medium: 2, members_high: 3 };
 const MEMBERSHIP_COSTS = { 1: 20, 2: 40, 3: 70 };
@@ -282,7 +300,7 @@ app.post('/api/user/become-creator', auth, async (req, res) => {
   res.json({ user: safeUser(promoted), token: tokenFor(promoted) });
 });
 
-app.get('/api/profiles', async (req, res) => { const profiles = db.mode === 'postgres' ? await db.listProfiles({ ...req.query, betaFree: config.BETA_FREE_ACCESS }) : db.profiles.filter((p) => (!req.query.city || p.city === req.query.city) && (!req.query.category || req.query.category === 'Todos' || p.category === req.query.category) && p.approved && p.active && (config.BETA_FREE_ACCESS || !p.owner_id || publicationFor(p.owner_id))); const ranked = db.mode === 'postgres' ? profiles : profiles.map(p => ({ ...p, plan: publicationFor(p.owner_id)?.plan || p.plan })).sort((a,b) => ({premium:0,destacado:1,basico:2}[a.plan] ?? 2) - ({premium:0,destacado:1,basico:2}[b.plan] ?? 2)); res.json({ profiles: ranked.map(profile => ({ ...safeProfile(profile), online: Boolean(profile.owner_id && isOnline(profile.owner_id)) })), beta_free: config.BETA_FREE_ACCESS }); });
+app.get('/api/profiles', async (req, res) => { const profiles = db.mode === 'postgres' ? await db.listProfiles({ ...req.query, betaFree: !config.CREATOR_MEMBERSHIPS_ENABLED }) : db.profiles.filter((p) => (!req.query.city || p.city === req.query.city) && (!req.query.category || req.query.category === 'Todos' || p.category === req.query.category) && p.approved && p.active && (!config.CREATOR_MEMBERSHIPS_ENABLED || !p.owner_id || publicationFor(p.owner_id))); const ranked = db.mode === 'postgres' ? profiles : profiles.map(p => ({ ...p, plan: publicationFor(p.owner_id)?.plan || p.plan })).sort((a,b) => ({elite:0,pro:1,plus:2,free:3}[a.plan] ?? 3) - ({elite:0,pro:1,plus:2,free:3}[b.plan] ?? 3)); res.json({ profiles: ranked.map(profile => ({ ...safeProfile(profile), online: Boolean(profile.owner_id && isOnline(profile.owner_id)) })), beta_free: config.BETA_FREE_ACCESS }); });
 app.get('/api/profiles/:id', async (req, res) => { db.profile_views ||= []; db.profile_likes ||= []; const profile = db.mode === 'postgres' ? await db.getProfile(req.params.id) : db.profiles.find((p) => String(p.id) === req.params.id); if (!profile || !profile.approved || !profile.active || !(await publishedProfile(profile))) return res.status(404).json({ error: 'Perfil no encontrado' }); let viewerId = null; try { const value = req.headers.authorization || ''; if (value.startsWith('Bearer ')) viewerId = jwt.verify(value.slice(7), config.JWT_SECRET).id; } catch {} if (viewerId && Number(viewerId) !== Number(profile.owner_id) && !db.profile_views.some(item => Number(item.profile_id) === Number(profile.id) && Number(item.user_id) === Number(viewerId) && Date.now() - new Date(item.created_at).getTime() < 86400000)) { db.profile_views.push({ id: db.nextId(db.profile_views), profile_id: profile.id, user_id: viewerId, created_at: new Date().toISOString() }); await db.save(); } const liked = viewerId ? db.profile_likes.some(item => Number(item.profile_id) === Number(profile.id) && Number(item.user_id) === Number(viewerId)) : false; res.json({ profile: { ...safeProfile(profile), online: Boolean(profile.owner_id && isOnline(profile.owner_id)) }, engagement: { views: db.profile_views.filter(item => Number(item.profile_id) === Number(profile.id)).length, likes: db.profile_likes.filter(item => Number(item.profile_id) === Number(profile.id)).length, liked } }); });
 app.post('/api/profiles/:id/like', auth, async (req,res) => { db.profile_likes ||= []; const profile = db.mode === 'postgres' ? await db.getProfile(req.params.id) : db.profiles.find(item => Number(item.id) === Number(req.params.id)); if (!profile || !profile.approved || !profile.active) return res.status(404).json({error:'Perfil no encontrado'}); if (Number(profile.owner_id) === Number(req.auth.id)) return res.status(409).json({error:'No puedes dar me gusta a tu propio perfil.'}); const index=db.profile_likes.findIndex(item=>Number(item.profile_id)===Number(profile.id)&&Number(item.user_id)===Number(req.auth.id)); let liked; if(index>=0){db.profile_likes.splice(index,1);liked=false;}else{db.profile_likes.push({id:db.nextId(db.profile_likes),profile_id:profile.id,user_id:req.auth.id,created_at:new Date().toISOString()});liked=true;notify(profile.owner_id,'profile_like','Nuevo me gusta',`${(await getUser(req.auth.id)).name} indicó que le gusta tu perfil.`);} await db.save(); res.json({liked,likes:db.profile_likes.filter(item=>Number(item.profile_id)===Number(profile.id)).length}); });
 app.get('/api/profiles/:id/reviews', async (req, res) => {
@@ -410,7 +428,7 @@ app.post('/api/uploads/image', auth, role('creator', 'admin', 'superadmin'), upl
   res.status(201).json({ url: `/uploads/${req.file.filename}`, filename: req.file.filename, size: req.file.size });
 });
 app.post('/api/creator/posts', auth, role('creator'), creatorPostInput, async (req, res) => { if (req.body.visibility !== 'public') separateSharedMedia(req.body.media_url); const post = { ...req.body, id: db.nextId(db.creator_posts), creator_id: req.auth.id, views: 0, likes: 0, purchases: 0, revenue_tokens: 0, created_at: new Date().toISOString() }; db.creator_posts.push(post); await db.save(); res.status(201).json({ post, studio: creatorSnapshot(req.auth.id) }); });
-app.get('/api/creator/posts/:creatorId', async (req, res) => { const creatorId = Number(req.params.creatorId); const creator = await getUser(creatorId); if (!creator || creator.role !== 'creator' || (!config.BETA_FREE_ACCESS && !(db.mode === 'postgres' ? new Date((await db.getCreatorPublication(creatorId))?.expires_at).getTime() > Date.now() : publicationFor(creatorId)))) return res.status(404).json({ error: 'Creador no encontrado' }); let viewerId = null; try { const authorization = req.headers.authorization || ''; if (authorization.startsWith('Bearer ')) viewerId = jwt.verify(authorization.slice(7), config.JWT_SECRET).id; } catch {} const posts = db.creator_posts.filter(post => Number(post.creator_id) === creatorId && post.status === 'published').sort((a,b) => Number(b.id) - Number(a.id)).map(post => { const locked = !canViewPost(post, viewerId); return { ...post, locked, likes: Number(post.likes || 0), comments_count: db.comments.filter(comment => Number(comment.post_id) === Number(post.id)).length, media_url: locked ? '' : post.visibility === 'public' ? post.media_url : `/api/creator/posts/${post.id}/media` }; }); res.json({ creator: safeUser(creator), posts }); });
+app.get('/api/creator/posts/:creatorId', async (req, res) => { const creatorId = Number(req.params.creatorId); const creator = await getUser(creatorId); if (!creator || creator.role !== 'creator' || (config.CREATOR_MEMBERSHIPS_ENABLED && !(db.mode === 'postgres' ? new Date((await db.getCreatorPublication(creatorId))?.expires_at).getTime() > Date.now() : publicationFor(creatorId)))) return res.status(404).json({ error: 'Creador no encontrado' }); let viewerId = null; try { const authorization = req.headers.authorization || ''; if (authorization.startsWith('Bearer ')) viewerId = jwt.verify(authorization.slice(7), config.JWT_SECRET).id; } catch {} const posts = db.creator_posts.filter(post => Number(post.creator_id) === creatorId && post.status === 'published').sort((a,b) => Number(b.id) - Number(a.id)).map(post => { const locked = !canViewPost(post, viewerId); return { ...post, locked, likes: Number(post.likes || 0), comments_count: db.comments.filter(comment => Number(comment.post_id) === Number(post.id)).length, media_url: locked ? '' : post.visibility === 'public' ? post.media_url : `/api/creator/posts/${post.id}/media` }; }); res.json({ creator: safeUser(creator), posts }); });
 app.get('/api/creator/posts/:id/media', auth, (req, res) => {
   const post = db.creator_posts.find(item => Number(item.id) === Number(req.params.id));
   if (!post || (post.status !== 'published' && Number(post.creator_id) !== Number(req.auth.id))) return res.status(404).json({ error: 'Publicación no disponible' });
@@ -421,7 +439,7 @@ app.get('/api/creator/posts/:id/media', auth, (req, res) => {
 app.post('/api/creator/posts/:id/unlock', auth, async (req, res) => {
   const post = db.creator_posts.find(item => Number(item.id) === Number(req.params.id) && item.status === 'published');
   if (!post) return res.status(404).json({ error: 'Publicación no encontrada' });
-  if (!config.BETA_FREE_ACCESS && !(db.mode === 'postgres' ? new Date((await db.getCreatorPublication(post.creator_id))?.expires_at).getTime() > Date.now() : publicationFor(post.creator_id))) return res.status(404).json({ error:'Publicación no disponible' });
+  if (config.CREATOR_MEMBERSHIPS_ENABLED && !(db.mode === 'postgres' ? new Date((await db.getCreatorPublication(post.creator_id))?.expires_at).getTime() > Date.now() : publicationFor(post.creator_id))) return res.status(404).json({ error:'Publicación no disponible' });
   if (post.visibility !== 'tokens' || !['photo','gallery'].includes(post.type)) return res.status(400).json({ error: 'Solo las fotos y galerías exclusivas se compran con tokens' });
   if (['photo', 'gallery', 'video'].includes(post.type) && (!/^\/uploads\/[\w.-]+$/.test(post.media_url || '') || !fs.existsSync(path.join(config.UPLOAD_DIR, path.basename(post.media_url))))) return res.status(409).json({ error: 'El archivo no está disponible. No se descontaron tokens.' });
   if (canViewPost(post, req.auth.id)) return res.json({ already_unlocked: true, post_id: post.id });
@@ -477,12 +495,17 @@ app.get('/api/payments/yape/packs', (_req,res) => res.json({ packs:YAPE_PACKS, e
 app.get('/api/creator/publication-plan', auth, role('creator','admin','superadmin'), async (req,res) => {
   const subscription = db.mode === 'postgres' ? await db.getCreatorPublication(req.auth.id) : db.creator_publication_subscriptions.find(item => Number(item.user_id) === Number(req.auth.id));
   const payments = db.mode === 'postgres' ? await db.listManualPayments(req.auth.id) : db.payments.filter(item => item.provider === 'yape' && item.purpose === 'creator_publication' && Number(item.user_id) === Number(req.auth.id));
-  res.json({ plans:config.BETA_FREE_ACCESS ? [] : PUBLICATION_PLANS,subscription,active:config.BETA_FREE_ACCESS || Boolean(subscription && new Date(subscription.expires_at).getTime() > Date.now()),beta_free:config.BETA_FREE_ACCESS,payments:payments.filter(item => item.purpose === 'creator_publication') });
+  res.json({ plans:PUBLICATION_PLANS,subscription,active:!config.CREATOR_MEMBERSHIPS_ENABLED || Boolean(subscription && new Date(subscription.expires_at).getTime() > Date.now()),memberships_enabled:config.CREATOR_MEMBERSHIPS_ENABLED,payments:payments.filter(item => item.purpose === 'creator_publication') });
 });
 app.post('/api/creator/publication-plan', auth, role('creator','admin','superadmin'), throttle(5, 60 * 60 * 1000), async (req,res) => {
   const plan = PUBLICATION_PLANS.find(item => item.id === req.body?.plan);
   const code = String(req.body?.operation_code || '').trim().toUpperCase();
   if (!plan) return res.status(400).json({ error:'Plan semanal inválido' });
+  if (plan.soles === 0) {
+    const subscription = await activateCreatorPlan(req.auth.id, plan.id);
+    await notify(req.auth.id, 'creator_plan_activated', 'Membresía gratuita activada', 'Tu plan Gratis está activo durante 7 días.');
+    return res.status(201).json({ subscription, activated:true });
+  }
   if (!/^[A-Z0-9-]{6,40}$/.test(code)) return res.status(400).json({ error:'Ingresa un código de operación válido de Yape' });
   let payment;
   if (db.mode === 'postgres') {

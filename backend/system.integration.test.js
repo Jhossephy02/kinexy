@@ -86,7 +86,7 @@ test('integración completa: cuentas, perfiles, publicaciones, billetera, aporte
     assert.equal(editedProfile.body.profile.description, 'Ficha actualizada por la creadora.');
     const publicProfiles = await request('/api/profiles');
     assert.equal(publicProfiles.body.profiles.some(item => item.id === profile.body.profile.id), false, 'la aprobación sola no publica sin plan');
-    const planPayment = await request('/api/creator/publication-plan', { method:'POST',token:creatorToken,body:{plan:'destacado',operation_code:'QA-WEEK-123'} });
+    const planPayment = await request('/api/creator/publication-plan', { method:'POST',token:creatorToken,body:{plan:'pro',operation_code:'QA-WEEK-123'} });
     assert.equal(planPayment.status,201);
     assert.equal((await request('/api/profiles')).body.profiles.some(item => item.id === profile.body.profile.id),false,'el pago pendiente no publica');
     assert.equal((await request(`/api/moderation/payments/${planPayment.body.payment.id}`, { method:'PATCH',token:rootToken,body:{decision:'approved'} })).status,200);
@@ -126,16 +126,16 @@ test('integración completa: cuentas, perfiles, publicaciones, billetera, aporte
     assert.equal(clientWallet.body.transactions.some(item => item.type === 'tip'), true);
     assert.equal(creatorWallet.body.transactions.some(item => item.type === 'tip_received'), true);
     const publication = db.creator_publication_subscriptions.find(item => Number(item.user_id) === Number(creatorId));
-    assert.equal(publication.plan,'destacado');
+    assert.equal(publication.plan,'pro');
     publication.expires_at = new Date(Date.now() - 1000).toISOString();
     assert.equal((await request('/api/profiles')).body.profiles.some(item => item.id === profile.body.profile.id),false,'el anuncio vencido se retira del directorio');
     assert.equal((await request(`/api/profiles/${profile.body.profile.id}`)).status,404);
     assert.equal((await request(`/api/creator/posts/${post.body.post.id}/unlock`, { method:'POST',token:clientToken,body:{} })).status,404,'no se cobra contenido mientras el plan de la creadora está vencido');
-    const renewal = await request('/api/creator/publication-plan', { method:'POST',token:creatorToken,body:{plan:'premium',operation_code:'QA-WEEK-456'} });
+    const renewal = await request('/api/creator/publication-plan', { method:'POST',token:creatorToken,body:{plan:'elite',operation_code:'QA-WEEK-456'} });
     assert.equal(renewal.status,201);
     assert.equal((await request(`/api/moderation/payments/${renewal.body.payment.id}`, { method:'PATCH',token:rootToken,body:{decision:'approved'} })).status,200);
     assert.equal((await request('/api/profiles')).body.profiles.some(item => item.id === profile.body.profile.id),true);
-    assert.equal(publication.plan,'premium');
+    assert.equal(publication.plan,'elite');
   } finally {
     uploadedFiles.forEach(file => { if (fs.existsSync(file)) fs.unlinkSync(file); });
     await new Promise(resolve => server.close(resolve));
