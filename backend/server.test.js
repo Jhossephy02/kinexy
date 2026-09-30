@@ -33,7 +33,7 @@ test('API protects credentials, unpublished records and ownership', async () => 
     assert.equal((await request('/api/wallet/spend','POST',{product_id:'live_access'},token)).status,409);
     assert.equal((await request('/api/creator/studio','GET',undefined,token)).status,200);
     assert.equal((await request('/api/creator/posts','POST',{title:'Foto sin archivo',type:'photo',visibility:'tokens',price_tokens:30,status:'published'},token)).status,400);
-    const post=await request('/api/creator/posts','POST',{title:'Nota exclusiva',type:'text',visibility:'tokens',price_tokens:30,status:'published'},token); assert.equal(post.status,201); assert.equal(post.body.studio.stats.published,1);
+    const post=await request('/api/creator/posts','POST',{title:'Nota pública',type:'text',visibility:'public',price_tokens:0,status:'published'},token); assert.equal(post.status,201); assert.equal(post.body.studio.stats.published,1);
     assert.equal((await request('/api/creator/posts','POST',{title:'Sin precio',type:'photo',visibility:'tokens',price_tokens:0},token)).status,400);
     assert.equal((await request('/api/creator/live/start','POST',{title:'Directo de prueba'},token)).status,410);
     

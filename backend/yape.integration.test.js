@@ -3,8 +3,6 @@ const assert = require('node:assert/strict');
 const { createApp } = require('./server');
 
 test('Yape requiere revisión global y acredita una sola vez', async () => {
-  const previous = process.env.YAPE_PRICE_40;
-  process.env.YAPE_PRICE_40 = '5';
   const db = { mode:'json', users:[], profiles:[], membership_plans:[], moderation_reports:[], moderation_actions:[], token_wallets:[], token_transactions:[], token_unlocks:[], payments:[], messages:[], creator_posts:[], nextId(items) { return Math.max(0,...items.map(item => Number(item.id) || 0)) + 1; }, save() {} };
   const server = createApp(db).listen(0,'127.0.0.1');
   await new Promise(resolve => server.once('listening',resolve));
@@ -16,7 +14,7 @@ test('Yape requiere revisión global y acredita una sola vez', async () => {
     db.users.find(item => item.id === modAccount.data.user.id).role = 'moderator';
     const mod = await request('/api/auth/login','POST',{email:'yape-mod@test.local',password:'SecurePass1!',date_of_birth:'1990-01-01',accepted_terms:true,accepted_privacy:true});
     const c = client.data.token;
-    assert.equal((await request('/api/payments/yape/packs')).data.packs[0].soles,5);
+    assert.equal((await request('/api/payments/yape/packs')).data.packs[0].soles,20);
     const payment = await request('/api/payments/yape','POST',{tokens:40,operation_code:'ABC12345'},c);
     assert.equal(payment.status,201);
     assert.equal((await request('/api/wallet','GET',undefined,c)).data.balance,0);
@@ -29,7 +27,6 @@ test('Yape requiere revisión global y acredita una sola vez', async () => {
     assert.equal((await request('/api/wallet','GET',undefined,c)).data.balance,40);
     assert.equal(db.token_transactions.filter(item => item.type === 'manual_yape_credit').length,1);
   } finally {
-    if (previous === undefined) delete process.env.YAPE_PRICE_40; else process.env.YAPE_PRICE_40 = previous;
     await new Promise(resolve => server.close(resolve));
   }
 });

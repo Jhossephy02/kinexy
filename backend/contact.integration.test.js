@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createApp } = require('./server');
 
-test('contacto externo requiere tokens y no expone datos antes de pagar', async () => {
+test('durante la beta el contacto externo está disponible sin descontar tokens', async () => {
   const db = {
     mode: 'json',
     users: [
@@ -38,18 +38,19 @@ test('contacto externo requiere tokens y no expone datos antes de pagar', async 
     assert.equal(publicProfile.data.profile.contact_price_tokens, 12);
     assert.equal((await request('/api/profiles/7/contact')).status, 401);
     const before = await request('/api/profiles/7/contact', viewer);
-    assert.equal(before.data.unlocked, false);
-    assert.deepEqual(before.data.links, {});
-    assert.equal((await request('/api/profiles/7/contact/unlock', empty, 'POST', {})).status, 409);
+    assert.equal(before.data.unlocked, true);
+    assert.equal(before.data.links.whatsapp, 'https://wa.me/51987654321');
+    assert.equal(before.data.links.telegram, 'https://t.me/creadora_test');
+    assert.equal((await request('/api/profiles/7/contact/unlock', empty, 'POST', {})).status, 200);
     assert.equal(db.token_wallets.find(item => item.user_id === 3).balance, 5);
     const purchase = await request('/api/profiles/7/contact/unlock', viewer, 'POST', {});
-    assert.equal(purchase.status, 201);
+    assert.equal(purchase.status, 200);
     assert.equal(purchase.data.links.whatsapp, 'https://wa.me/51987654321');
     assert.equal(purchase.data.links.telegram, 'https://t.me/creadora_test');
-    assert.equal(db.token_wallets.find(item => item.user_id === 2).balance, 18);
-    assert.equal(db.token_wallets.find(item => item.user_id === 1).balance, 12);
+    assert.equal(db.token_wallets.find(item => item.user_id === 2).balance, 30);
+    assert.equal(db.token_wallets.find(item => item.user_id === 1), undefined);
     assert.equal((await request('/api/profiles/7/contact/unlock', viewer, 'POST', {})).status, 200);
-    assert.equal(db.token_wallets.find(item => item.user_id === 2).balance, 18);
+    assert.equal(db.token_wallets.find(item => item.user_id === 2).balance, 30);
     assert.equal((await request('/api/profiles/7/contact', viewer)).data.unlocked, true);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
