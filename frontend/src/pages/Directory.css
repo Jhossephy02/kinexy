@@ -58,3 +58,9 @@
 @media(max-width:760px){.listing-shortcuts{gap:9px}.listing-shortcuts button{min-height:64px}.directory-page .profile-card:hover{transform:none}.directory-page .creator-art{height:250px}.directory-page .directory-available{font-size:8px;padding:5px 7px}.card-cta{padding:8px 9px}}
 @media(max-width:420px){.directory-page .creator-art{height:205px}.directory-page .profile-card__body{padding:13px 11px}.directory-page .profile-card__topline strong{font-size:14px}.directory-card-meta{font-size:10px}.card-cta{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.listing-shortcuts button,.directory-page .profile-card,.directory-page .creator-photo,.directory-page .profile-card:before,.creator-arrow,.card-cta,.card-cta b{transition:none!important}.directory-page .profile-card:hover{transform:none}.directory-page .profile-card:hover:before{transform:none}}
+
+
+/* Evita desplazamiento horizontal y recortes en pantallas estrechas. */
+.directory-page{width:100%;box-sizing:border-box;overflow-x:clip}
+.directory-page .listing-shortcuts,.directory-page .listing-filters,.directory-page .listing-grid,.directory-page .profile-card,.directory-page .profile-open{min-width:0}
+@media(max-width:1440px){.directory-page{max-width:none}}
