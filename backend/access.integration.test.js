@@ -56,6 +56,11 @@ test('precio por foto, video y niveles de membresía restringen archivo y saldo'
     assert.equal((await request(`/api/creator/posts/${video.data.post.id}/unlock`, client, 'POST', {})).status, 201);
     assert.equal((await request(`/api/creator/posts/${video.data.post.id}/media`, client)).status, 200);
     assert.equal((await request('/api/wallet', client)).data.balance, 75);
+    const deleted = await request(`/api/creator/posts/${video.data.post.id}`, creator, 'DELETE');
+    assert.equal(deleted.status, 200);
+    assert.equal(deleted.data.studio.posts.some(post => post.id === video.data.post.id), false);
+    assert.equal((await request(`/api/creator/posts/${video.data.post.id}/media`, client)).status, 404);
+    assert.equal(fs.existsSync(file), true);
     const memberPost = await request('/api/creator/posts', creator, 'POST', { title: 'Plus', visibility: 'members_medium', media_url: url, status: 'published' });
     assert.equal(memberPost.status, 201);
     assert.equal((await request('/api/membership/subscribe', client, 'POST', { tier: 1 })).status, 201);

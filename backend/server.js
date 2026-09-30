@@ -145,6 +145,13 @@ function separateSharedMedia(url) {
   for (const post of sharedPosts) post.media_url = `/uploads/${copyName}`;
   db.save();
 }
+function removeUnusedMedia(url, removedPostId) {
+  if (!/^\/uploads\/[\w.-]+$/.test(url || '')) return;
+  const stillUsedByPost = db.creator_posts.some(item => Number(item.id) !== Number(removedPostId) && item.media_url === url);
+  const stillUsedByProfile = (db.profiles || []).some(profile => profile.photo === url || (Array.isArray(profile.photos) && profile.photos.includes(url)));
+  if (stillUsedByPost || stillUsedByProfile) return;
+  try { fs.unlinkSync(path.join(config.UPLOAD_DIR, path.basename(url))); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+}
 for (const post of db.creator_posts.filter(item => item.visibility !== 'public')) separateSharedMedia(post.media_url);
 const TOKEN_PRODUCTS = [
   { id: 'exclusive_post', title: 'Publicación exclusiva', description: 'Contenido de muestra disponible en la biblioteca.', cost: 25, icon: 'image' },
@@ -234,7 +241,8 @@ function creatorSnapshot(creatorId) {
   const tipRevenue = db.tips.filter(tip => Number(tip.receiver_id) === Number(creatorId)).reduce((sum, tip) => sum + Number(tip.amount || 0), 0);
   const profileViews = db.profile_views.filter(view => profileIds.has(Number(view.profile_id))).length;
   const profileLikes = db.profile_likes.filter(like => profileIds.has(Number(like.profile_id))).length;
-  const totals = posts.reduce((sum, post) => ({ views: sum.views + Number(post.views || 0), likes: sum.likes + Number(post.likes || 0), purchases: sum.purchases + Number(post.purchases || 0), revenue_tokens: sum.revenue_tokens + Number(post.revenue_tokens || 0) }), { views: profileViews, likes: profileLikes, purchases: 0, revenue_tokens: tipRevenue });
+  const salesTotals = sales.reduce((sum, sale) => ({ purchases: sum.purchases + 1, revenue_tokens: sum.revenue_tokens + Number(sale.amount_tokens || 0) }), { purchases: 0, revenue_tokens: tipRevenue });
+  const totals = posts.reduce((sum, post) => ({ ...sum, views: sum.views + Number(post.views || 0), likes: sum.likes + Number(post.likes || 0) }), { views: profileViews, likes: profileLikes, ...salesTotals });
   const scale = [0.48,0.62,0.57,0.76,0.68,0.91,1];
   const analytics = scale.map((factor,index) => ({ day: ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'][index], views: Math.round((totals.views || 1250) * factor / 4), likes: Math.round((totals.likes || 210) * factor / 4) }));
   return { posts, sales, audience, moderators, live, analytics, stats: { ...totals, posts: posts.length, published: posts.filter(item => item.status === 'published').length, available_tokens: Math.round(totals.revenue_tokens * .8), pending_tokens: Math.round(totals.revenue_tokens * .2) } };
@@ -255,8 +263,8 @@ app.post('/api/auth/google', async (req, res) => {
   if (!payload?.email || !payload.email_verified) return res.status(403).json({ error: 'Google debe confirmar un correo electrónico verificado.' });
   let user = await findUser(payload.email);
   if (!user) {
-    if (!adultBirthDate(req.body?.date_of_birth)) return res.status(403).json({ error: 'Solo pueden registrarse personas de 18 años o más.' });
-    if (req.body?.accepted_terms !== true || req.body?.accepted_privacy !== true) return res.status(400).json({ error: 'Debes aceptar los términos y la política de privacidad.' });
+    if (!req.body?.date_of_birth || req.body?.accepted_terms !== true || req.body?.accepted_privacy !== true) return res.status(409).json({ error: 'Completa tu fecha de nacimiento y las confirmaciones para crear tu cuenta con Google.', registration_required: true });
+    if (!adultBirthDate(req.body.date_of_birth)) return res.status(403).json({ error: 'Solo pueden registrarse personas de 18 años o más.' });
     const generatedPassword = await bcrypt.hash(require('crypto').randomBytes(32).toString('hex'), 10);
     const name = String(payload.name || payload.given_name || payload.email.split('@')[0]).slice(0, 100);
     const assignedRole = isProtectedOwner(payload.email) ? 'superadmin' : publicRole;
@@ -512,6 +520,17 @@ app.delete('/api/comments/:id', auth, async (req, res) => {
 app.get('/api/creator/posts/:id/likes', auth, async (req, res) => { const post = db.creator_posts.find(item => Number(item.id) === Number(req.params.id)); if (!post) return res.status(404).json({ error: 'Publicación no encontrada' }); res.json({ liked: db.post_likes.some(item => Number(item.post_id) === post.id && Number(item.user_id) === Number(req.auth.id)), count: Number(post.likes || 0) }); });
 app.post('/api/creator/posts/:id/likes', auth, async (req, res) => { const post = db.creator_posts.find(item => Number(item.id) === Number(req.params.id) && item.status === 'published'); if (!post) return res.status(404).json({ error: 'Publicación no encontrada' }); if (!canViewPost(post, req.auth.id)) return res.status(403).json({ error: 'Desbloquea la publicación para interactuar' }); const index = db.post_likes.findIndex(item => Number(item.post_id) === post.id && Number(item.user_id) === Number(req.auth.id)); if (index >= 0) { db.post_likes.splice(index, 1); post.likes = Math.max(0, Number(post.likes || 0) - 1); await db.save(); return res.json({ liked: false, count: post.likes }); } db.post_likes.push({ id: db.nextId(db.post_likes), post_id: post.id, user_id: req.auth.id, created_at: new Date().toISOString() }); post.likes = Number(post.likes || 0) + 1; notify(post.creator_id, 'like', 'Nuevo me gusta', `Tu publicación “${post.title}” recibió un me gusta.`); await db.save(); res.json({ liked: true, count: post.likes }); });
 app.patch('/api/creator/posts/:id', auth, role('creator'), async (req, res) => { const post = db.creator_posts.find(item => Number(item.id) === Number(req.params.id) && Number(item.creator_id) === Number(req.auth.id)); if (!post) return res.status(404).json({ error: 'Publicación no encontrada' }); const { status, title, caption, visibility, price_tokens } = req.body || {}; if (status !== undefined && !['draft','published','archived'].includes(status)) return res.status(400).json({ error: 'Estado de publicación inválido' }); if (title !== undefined && (typeof title !== 'string' || !title.trim() || title.length > 100)) return res.status(400).json({ error: 'Título inválido' }); if (caption !== undefined && (typeof caption !== 'string' || caption.length > 1000)) return res.status(400).json({ error: 'Descripción inválida' }); if (visibility !== undefined && !['public','members_basic','members_medium','members_high','tokens'].includes(visibility)) return res.status(400).json({ error: 'Privacidad inválida' }); if (visibility === 'tokens' && !['photo','gallery','video'].includes(post.type)) return res.status(400).json({ error: 'Solo las fotos, galerías y videos se pueden vender por tokens' }); if (price_tokens !== undefined && (!Number.isInteger(Number(price_tokens)) || Number(price_tokens) < 1 || Number(price_tokens) > 10000)) return res.status(400).json({ error: 'Precio inválido' }); if (status !== undefined) post.status = status; if (title !== undefined) post.title = title.trim(); if (caption !== undefined) post.caption = caption.trim(); if (visibility !== undefined) { post.visibility = visibility; post.price_tokens = visibility === 'tokens' ? Number(price_tokens ?? post.price_tokens) : 0; } else if (price_tokens !== undefined && post.visibility === 'tokens') post.price_tokens = Number(price_tokens); post.updated_at = new Date().toISOString(); await db.save(); res.json({ post, studio: creatorSnapshot(req.auth.id) }); });
+app.delete('/api/creator/posts/:id', auth, role('creator'), async (req, res) => {
+  const index = db.creator_posts.findIndex(item => Number(item.id) === Number(req.params.id) && Number(item.creator_id) === Number(req.auth.id));
+  if (index < 0) return res.status(404).json({ error: 'Publicación no encontrada' });
+  const [post] = db.creator_posts.splice(index, 1);
+  db.post_unlocks = db.post_unlocks.filter(item => Number(item.post_id) !== Number(post.id));
+  db.comments = db.comments.filter(item => Number(item.post_id) !== Number(post.id));
+  db.post_likes = db.post_likes.filter(item => Number(item.post_id) !== Number(post.id));
+  removeUnusedMedia(post.media_url, post.id);
+  await db.save();
+  res.json({ removed_id: post.id, studio: creatorSnapshot(req.auth.id) });
+});
 app.post('/api/creator/live/start', auth, role('creator'), (_req, res) => res.status(410).json({ error: 'Las transmisiones en vivo no están disponibles por ahora.' }));
 app.patch('/api/creator/live', auth, role('creator'), async (req, res) => { const live = [...db.creator_lives].reverse().find(item => Number(item.creator_id) === Number(req.auth.id) && item.status === 'live'); if (!live) return res.status(404).json({ error: 'No hay una transmisión activa' }); const { title, chat_mode, followers_only, slow_mode } = req.body || {}; if (title !== undefined) { if (typeof title !== 'string' || !title.trim() || title.length > 100) return res.status(400).json({ error: 'Título del directo inválido' }); live.title = title.trim(); } if (chat_mode !== undefined) { if (!['everyone','followers','members'].includes(chat_mode)) return res.status(400).json({ error: 'Modo de chat inválido' }); live.chat_mode = chat_mode; } if (followers_only !== undefined) { if (typeof followers_only !== 'boolean') return res.status(400).json({ error: 'El filtro de seguidores debe ser booleano' }); live.followers_only = followers_only; } if (slow_mode !== undefined) { const seconds = Number(slow_mode); if (![0,5,10,30,60].includes(seconds)) return res.status(400).json({ error: 'Modo lento inválido' }); live.slow_mode = seconds; } live.updated_at = new Date().toISOString(); await db.save(); res.json({ live, studio: creatorSnapshot(req.auth.id) }); });
 app.post('/api/creator/live/stop', auth, role('creator'), async (req, res) => { const live = [...db.creator_lives].reverse().find(item => Number(item.creator_id) === Number(req.auth.id) && item.status === 'live'); if (!live) return res.status(404).json({ error: 'No hay una transmisión activa' }); live.status = 'ended'; live.ended_at = new Date().toISOString(); await db.save(); res.json({ live, studio: creatorSnapshot(req.auth.id) }); });

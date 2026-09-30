@@ -45,6 +45,7 @@ export const creatorService = {
   createPost: data => api.post('/creator/posts', data),
   setPostStatus: (id, status) => api.patch(`/creator/posts/${id}`, { status }),
   updatePost: (id, data) => api.patch(`/creator/posts/${id}`, data),
+  deletePost: id => api.delete(`/creator/posts/${id}`),
   uploadImage,
 };
 export default api;
