@@ -14,3 +14,47 @@
 @media(max-width:420px){.directory-page .creator-art{height:190px}.listing-toolbar select{margin:4px 0 0}.listing-toolbar label{display:grid}}
 .listing-more{display:flex;flex-direction:column;align-items:center;gap:9px;padding:30px 0 4px}.listing-more button{min-width:230px;border:1px solid #815368;border-radius:9px;background:#2f2029;color:#ffd4e1;padding:13px 20px;font-weight:700;cursor:pointer}.listing-more button:hover{background:#482b3a}.listing-more span{color:#8f828d;font-size:10px}.directory-page .save-profile{top:11px;right:11px;background:#171218cc;border-color:#ffffff55}.directory-page .save-profile.is-saved{background:#ffd8e4;color:#9c2f52}.directory-page .category-badge{top:12px;bottom:auto;left:12px;right:auto;width:auto;height:auto;display:inline-flex;align-items:center;line-height:1;white-space:nowrap;padding:7px 9px;border-radius:7px}
 .directory-page .profile-card.plan-destacado{border-color:#b56b88}.directory-page .profile-card.plan-premium{border-color:#e997b0;box-shadow:0 0 0 1px #e997b055,0 16px 38px #0005}.directory-page .profile-card.plan-premium .category-badge{background:#f18ba8;color:#24141b;font-weight:800}
+
+
+/* Directorio con tarjetas más expresivas y legibles. */
+.directory-page{position:relative}
+.directory-page:before{content:'';position:absolute;z-index:-1;top:-165px;right:-170px;width:560px;height:560px;border-radius:50%;background:radial-gradient(circle,#ca709222 0,transparent 67%);filter:blur(8px);pointer-events:none}
+.listing-shortcuts{position:relative;gap:12px;margin-top:8px}
+.listing-shortcuts button{position:relative;overflow:hidden;min-height:70px;border-color:#4b3848;background:linear-gradient(145deg,#201b23,#18161c);box-shadow:0 10px 28px #0000001c;transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
+.listing-shortcuts button:before{content:'';position:absolute;inset:auto -28px -55px auto;width:105px;height:105px;border-radius:50%;background:#ee89aa12;transition:transform .3s ease}
+.listing-shortcuts button:hover{transform:translateY(-3px);border-color:#a45c76;box-shadow:0 16px 30px #00000045}
+.listing-shortcuts button:hover:before{transform:scale(1.8)}
+.listing-shortcuts b{position:relative;z-index:1;background:linear-gradient(135deg,#5b3448,#302230);border:1px solid #ffffff10;color:#ffb1c8;box-shadow:inset 0 1px #ffffff16}
+.listing-shortcuts button.selected{background:linear-gradient(135deg,#4a293a,#2b202b);border-color:#ec83a5;box-shadow:0 0 0 1px #ec83a533,0 17px 32px #190e1629}
+.listing-shortcuts button.selected b{background:linear-gradient(135deg,#f395b2,#ca577e);color:#311620}
+.listing-filters{position:relative;background:linear-gradient(145deg,#241d26,#1b181e);box-shadow:0 14px 34px #0000001c}
+.listing-filters:focus-within{border-color:#8f536a;box-shadow:0 0 0 3px #e582a510,0 14px 34px #0000001c}
+.listing-categories{padding:4px 0 2px}
+.listing-categories button{transition:background .2s ease,color .2s ease,border-color .2s ease,transform .2s ease}
+.listing-categories button:hover{border-color:#ae607c;color:#ffe3ec;transform:translateY(-1px)}
+.directory-page .profile-card{overflow:hidden;border:1px solid #493844;background:linear-gradient(165deg,#211b23,#18161c);box-shadow:0 14px 35px #00000024;isolation:isolate}
+.directory-page .profile-card:before{content:'';position:absolute;z-index:1;inset:0;border-radius:inherit;background:linear-gradient(130deg,#fff0 40%,#fff1 50%,#fff0 58%);transform:translateX(-150%);pointer-events:none}
+.directory-page .profile-card:hover:before{transform:translateX(150%);transition:transform .75s ease}
+.directory-page .profile-card:hover{border-color:#e989aa;box-shadow:0 22px 50px #09070c90;transform:translateY(-7px)}
+.directory-page .creator-art{height:320px;background:#2a1e2a}
+.directory-page .creator-art:after{background:linear-gradient(180deg,#170e1800 42%,#161019c7 100%)}
+.directory-page .creator-photo{width:100%;height:100%;object-fit:cover;transition:transform .6s cubic-bezier(.2,.8,.2,1),filter .35s ease}
+.directory-page .profile-card:hover .creator-photo{transform:scale(1.065);filter:saturate(1.08) contrast(1.03)}
+.directory-page .category-badge{border:1px solid #ffffff30;background:#1a141bd6;backdrop-filter:blur(10px);box-shadow:0 8px 20px #0004}
+.directory-page .directory-available{display:inline-flex;right:11px;bottom:11px;padding:6px 9px;font-size:9px;border-color:#ffffff2b;background:#17131bd9}
+.directory-page .profile-card__body{position:relative;padding:17px 16px 15px;background:linear-gradient(160deg,#211b23,#19161d)}
+.directory-page .profile-card__topline strong{font-size:17px;letter-spacing:-.35px}
+.directory-page .creator-arrow{display:grid;place-items:center;width:25px;height:25px;border:1px solid #57414d;border-radius:50%;color:#ffc1d2;transition:background .2s ease,transform .2s ease}
+.directory-page .profile-card:hover .creator-arrow{background:#f08aa9;color:#321824;transform:rotate(45deg)}
+.directory-card-meta{margin-top:11px;padding-top:11px}
+.directory-card-meta strong{font-weight:750}
+.card-cta{display:flex;align-items:center;justify-content:space-between;margin-top:13px;padding:9px 10px;border-radius:8px;background:#ffffff08;color:#eab0c2;font-size:10px;font-weight:800;letter-spacing:.2px;transition:background .2s ease,color .2s ease}
+.card-cta b{font-size:15px;line-height:.6;transition:transform .2s ease}
+.directory-page .profile-card:hover .card-cta{background:#f093b1;color:#341923}.directory-page .profile-card:hover .card-cta b{transform:translateX(3px)}
+.directory-page .profile-card__body small{display:none}
+.directory-page .profile-card.plan-elite{border-color:#d6a45c;background:linear-gradient(165deg,#2a211b,#18161c)}
+.directory-page .profile-card.plan-elite .category-badge{border-color:#efd08b;color:#ffe2a3}
+.directory-page .profile-card.plan-premium{box-shadow:0 0 0 1px #e997b055,0 18px 42px #0005}
+@media(max-width:760px){.listing-shortcuts{gap:9px}.listing-shortcuts button{min-height:64px}.directory-page .profile-card:hover{transform:none}.directory-page .creator-art{height:250px}.directory-page .directory-available{font-size:8px;padding:5px 7px}.card-cta{padding:8px 9px}}
+@media(max-width:420px){.directory-page .creator-art{height:205px}.directory-page .profile-card__body{padding:13px 11px}.directory-page .profile-card__topline strong{font-size:14px}.directory-card-meta{font-size:10px}.card-cta{font-size:9px}}
+@media(prefers-reduced-motion:reduce){.listing-shortcuts button,.directory-page .profile-card,.directory-page .creator-photo,.directory-page .profile-card:before,.creator-arrow,.card-cta,.card-cta b{transition:none!important}.directory-page .profile-card:hover{transform:none}.directory-page .profile-card:hover:before{transform:none}}

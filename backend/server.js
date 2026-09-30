@@ -263,8 +263,6 @@ app.post('/api/auth/google', async (req, res) => {
   if (!payload?.email || !payload.email_verified) return res.status(403).json({ error: 'Google debe confirmar un correo electrónico verificado.' });
   let user = await findUser(payload.email);
   if (!user) {
-    if (!req.body?.date_of_birth || req.body?.accepted_terms !== true || req.body?.accepted_privacy !== true) return res.status(409).json({ error: 'Completa tu fecha de nacimiento y las confirmaciones para crear tu cuenta con Google.', registration_required: true });
-    if (!adultBirthDate(req.body.date_of_birth)) return res.status(403).json({ error: 'Solo pueden registrarse personas de 18 años o más.' });
     const generatedPassword = await bcrypt.hash(require('crypto').randomBytes(32).toString('hex'), 10);
     const name = String(payload.name || payload.given_name || payload.email.split('@')[0]).slice(0, 100);
     const assignedRole = isProtectedOwner(payload.email) ? 'superadmin' : publicRole;
