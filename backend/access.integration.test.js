@@ -5,7 +5,7 @@ const path = require('node:path');
 const { createApp } = require('./server');
 const config = require('./src/config');
 
-test('precio por foto y niveles de membresía restringen archivo y saldo', async () => {
+test('precio por foto, video y niveles de membresía restringen archivo y saldo', async () => {
   const previousBeta = config.BETA_FREE_ACCESS; config.BETA_FREE_ACCESS = false;
   const db = {
     mode: 'json', users: [
@@ -51,6 +51,11 @@ test('precio por foto y niveles de membresía restringen archivo y saldo', async
     assert.equal(changedPrice.data.post.price_tokens, 30);
     assert.equal((await request(`/api/creator/posts/${id}/media`, client)).status, 200);
     assert.equal((await request('/api/wallet', client)).data.balance, 85);
+    const video = await request('/api/creator/posts', creator, 'POST', { title: 'Video privado', type: 'video', visibility: 'tokens', price_tokens: 10, media_url: url, status: 'published' });
+    assert.equal(video.status, 201);
+    assert.equal((await request(`/api/creator/posts/${video.data.post.id}/unlock`, client, 'POST', {})).status, 201);
+    assert.equal((await request(`/api/creator/posts/${video.data.post.id}/media`, client)).status, 200);
+    assert.equal((await request('/api/wallet', client)).data.balance, 75);
     const memberPost = await request('/api/creator/posts', creator, 'POST', { title: 'Plus', visibility: 'members_medium', media_url: url, status: 'published' });
     assert.equal(memberPost.status, 201);
     assert.equal((await request('/api/membership/subscribe', client, 'POST', { tier: 1 })).status, 201);
@@ -58,7 +63,7 @@ test('precio por foto y niveles de membresía restringen archivo y saldo', async
     assert.equal((await request('/api/membership/subscribe', client, 'POST', { tier: 2 })).status, 201);
     assert.equal((await request('/api/creator/posts/2', client)).data.posts.find(post => post.id === memberPost.data.post.id).locked, false);
     assert.equal((await request(`/api/creator/posts/${memberPost.data.post.id}/media`, client)).status, 200);
-    assert.equal((await request('/api/wallet', client)).data.balance, 25);
+    assert.equal((await request('/api/wallet', client)).data.balance, 15);
   } finally {
     config.BETA_FREE_ACCESS = previousBeta;
     await new Promise(resolve => server.close(resolve));

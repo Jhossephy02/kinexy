@@ -12,6 +12,7 @@ module.exports = {
   DATABASE_URL:  process.env.DATABASE_URL || '',
   UPLOAD_DIR:    path.resolve(process.env.UPLOAD_DIR || './uploads'),
   MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE || '8388608', 10),
+  MAX_VIDEO_SIZE: parseInt(process.env.MAX_VIDEO_SIZE || '52428800', 10),
   FRONTEND_URL:  process.env.FRONTEND_URL || 'http://localhost:5173',
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
   OWNER_SUPERADMIN_EMAIL: (process.env.OWNER_SUPERADMIN_EMAIL || 'mjhossephy@gmail.com').trim().toLowerCase(),
