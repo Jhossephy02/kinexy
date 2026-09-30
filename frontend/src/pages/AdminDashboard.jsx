@@ -1399,26 +1399,32 @@ function ReportFilters({ filters, setFilters, total }) {
   const change = (key) => (event) => setFilters((current) => ({ ...current, [key]: event.target.value }));
   return (
     <div className="report-filters">
-      <label>
-        <Icon name="search" />
-        <input value={filters.query} onChange={change('query')} placeholder="Buscar por perfil, motivo o detalle" aria-label="Buscar reportes" />
+      <label className="report-filter report-filter-search">
+        <span><Icon name="search" /> Buscar reportes</span>
+        <input value={filters.query} onChange={change('query')} placeholder="Perfil, motivo o detalle" aria-label="Buscar reportes" />
       </label>
-      <select value={filters.priority} onChange={change('priority')} aria-label="Filtrar por prioridad">
-        <option value="all">Toda prioridad</option>
-        <option value="critical">Crítica</option>
-        <option value="high">Alta</option>
-        <option value="medium">Media</option>
-        <option value="low">Baja</option>
-      </select>
-      <select value={filters.status} onChange={change('status')} aria-label="Filtrar por estado">
-        <option value="active">Activos</option>
-        <option value="all">Todos</option>
-        <option value="open">Abiertos</option>
-        <option value="reviewing">En revisión</option>
-        <option value="resolved">Resueltos</option>
-        <option value="dismissed">Descartados</option>
-      </select>
-      <output>{total} resultados</output>
+      <label className="report-filter">
+        <span>Prioridad</span>
+        <select value={filters.priority} onChange={change('priority')} aria-label="Filtrar por prioridad">
+          <option value="all">Todas las prioridades</option>
+          <option value="critical">Crítica</option>
+          <option value="high">Alta</option>
+          <option value="medium">Media</option>
+          <option value="low">Baja</option>
+        </select>
+      </label>
+      <label className="report-filter">
+        <span>Estado</span>
+        <select value={filters.status} onChange={change('status')} aria-label="Filtrar por estado">
+          <option value="active">Activos</option>
+          <option value="all">Todos</option>
+          <option value="open">Abiertos</option>
+          <option value="reviewing">En revisión</option>
+          <option value="resolved">Resueltos</option>
+          <option value="dismissed">Descartados</option>
+        </select>
+      </label>
+      <output className="report-filter-total"><b>{total}</b> {total === 1 ? 'resultado' : 'resultados'}</output>
     </div>
   );
 }
