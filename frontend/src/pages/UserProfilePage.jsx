@@ -5,6 +5,7 @@ import AppIcon from '../components/ui/AppIcon.jsx';
 import Toast from '../components/ui/Toast.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import { walletService } from '../api/client';
+import './UserProfilePage.css';
 
 export default function UserProfilePage() {
   const { user, isAuthenticated, isCreator, isModerator, isAdmin, isSuperadmin, logout, becomeCreator } = useAuth();
@@ -147,7 +148,7 @@ export default function UserProfilePage() {
       </Modal>
 
       {/* ENLACES RÁPIDOS A BILLETERA Y MENSAJES */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
+      <section className="profile-quick-links" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
         <Link to="/wallet" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '20px', textDecoration: 'none', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '15px' }}>
           <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: '#241a24', display: 'grid', placeItems: 'center', color: 'var(--red)' }}>
             <AppIcon name="wallet" size={20} />
