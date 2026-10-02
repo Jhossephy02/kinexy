@@ -15,7 +15,17 @@ function createApp(database) {
 const app = express();
 app.disable('x-powered-by');
 if (config.NODE_ENV === 'production') app.set('trust proxy', 1);
-app.use((_req, res, next) => { res.set('X-Content-Type-Options', 'nosniff'); res.set('Cache-Control', 'no-store'); next(); });
+app.use((_req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+  });
+  if (config.NODE_ENV === 'production') res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.set('Cache-Control', 'no-store');
+  next();
+});
 for (const method of ['get', 'post', 'put', 'patch', 'delete']) { const register = app[method].bind(app); app[method] = (path, ...handlers) => register(path, ...handlers.map(handler => (req, res, next) => Promise.resolve().then(() => handler(req, res, next)).catch(next))); }
 app.use(cors({ origin: config.FRONTEND_URL, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
